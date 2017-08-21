@@ -1,0 +1,115 @@
+---
+title: "21/08/2017"
+output:
+  html_notebook: default
+  html_document: default
+---
+
+#Sesión 21/08/2017
+
+## ¿Será posible que escogimos una muestra atípica?
+
+Sí, debido a que la función $f(x)$ es la misma. Mostraré el ejemplo 1.5 y datos de entrenamiento distintos. Incluso cambiando el span de LOESS.
+
+###Esta es la muestra del ejemplo 1.5
+```{r}
+library(ggplot2)
+library(dplyr)
+library(purrr)
+#library(readr)
+x <- c(1,7,10,0,0,5,9,13,2,4,17,18,1,2)
+set.seed(145904)
+error <- rnorm(length(x), 0, 500)
+f <- function(x) {
+  ifelse(x < 10, 1000*sqrt(x), 1000*sqrt(10))
+}
+y <- f(x) + error
+datos_entrena <- data.frame(x=x, y=y)
+model1 = lm(formula = x~y, data = datos_entrena)
+error_f <- function(df){
+  function(mod){
+    preds <- predict(mod, newdata = df)
+    round(sqrt(mean((preds-df$y)^2)))
+  }
+}
+
+ggplot(datos_entrena, aes(x=x, y=y)) + 
+  geom_point() + #datos_entrena
+  geom_smooth(data=datos_entrena, method = "loess", se=FALSE, color="gray", span=1, size=1.1) + # loess 1
+  geom_smooth(data=datos_entrena, method = "loess", se=FALSE, color="red", span=0.3, size=1.1) + # loess 0.3
+  geom_smooth(data=datos_entrena, method = "lm", se=FALSE, color="blue", size=1.1)
+```
+
+```{r}
+summary(model1)
+```
+
+####Errores de entrenamiento y prueba
+
+```{r}
+set.seed(218052272)
+mod_rojo <- loess(y ~ x, data = datos_entrena, span=0.3)
+mod_gris <- loess(y ~ x, data = datos_entrena, span=1)
+mod_recta <- lm(y ~ x, data = datos_entrena)
+error_ent <- error_f(datos_entrena)
+df_mods <- data_frame(nombre = c('recta', 'rojo','gris'))
+df_mods$modelo <- list(mod_recta, mod_rojo, mod_gris)
+df_mods <- df_mods %>% 
+  mutate(error_entrena = map_dbl(modelo, error_ent))
+x_0 <- sample(0:13, 100, replace = T)
+error <- rnorm(length(x_0), 0, 500)
+y_0 <- f(x_0) + error
+datos_prueba <- data_frame(x = x_0, y = y_0)
+error_p <- error_f(datos_prueba)
+df_mods <- df_mods %>% 
+  mutate(error_prueba = map_dbl(modelo, error_p))
+df_mods
+```
+
+
+### Datos de entrenamiento sin tantos outliers regresión LOESS 0.3
+
+Se muestran datos de entrenamiento distintos sin tanto _outliers_ con la regresión LOESS 0.3.
+
+```{r}
+x <- c(0,2,5,7,9,8,2,18,12,12,10,6)
+set.seed(145904)
+error <- rnorm(length(x), 0, 500)
+f <- function(x) {
+  ifelse(x < 10, 1000*sqrt(x), 1000*sqrt(10))
+}
+y <- f(x) + error
+datos_entrena <- data.frame(x=x, y=y)
+model1 = lm(formula = x~y, data = datos_entrena)
+
+ggplot(datos_entrena, aes(x=x, y=y)) + 
+  geom_point() + #datos_entrena
+  geom_smooth(data=datos_entrena, method = "loess", se=FALSE, color="gray", span=1, size=1.1) + # loess 1
+  geom_smooth(data=datos_entrena, method = "loess", se=FALSE, color="red", span=0.3, size=1.1) + # loess 0.3
+  geom_smooth(data=datos_entrena, method = "lm", se=FALSE, color="blue", size=1.1)
+```
+```{r}
+summary(model1)
+```
+####Errores de entrenamiento y prueba
+
+```{r}
+set.seed(218052272)
+mod_rojo <- loess(y ~ x, data = datos_entrena, span=0.3)
+mod_gris <- loess(y ~ x, data = datos_entrena, span=1)
+mod_recta <- lm(y ~ x, data = datos_entrena)
+error_ent <- error_f(datos_entrena)
+df_mods <- data_frame(nombre = c('recta', 'rojo','gris'))
+df_mods$modelo <- list(mod_recta, mod_rojo, mod_gris)
+df_mods <- df_mods %>% 
+  mutate(error_entrena = map_dbl(modelo, error_ent))
+x_0 <- sample(0:13, 100, replace = T)
+error <- rnorm(length(x_0), 0, 500)
+y_0 <- f(x_0) + error
+datos_prueba <- data_frame(x = x_0, y = y_0)
+error_p <- error_f(datos_prueba)
+df_mods <- df_mods %>% 
+  mutate(error_prueba = map_dbl(modelo, error_p))
+df_mods
+```
+
