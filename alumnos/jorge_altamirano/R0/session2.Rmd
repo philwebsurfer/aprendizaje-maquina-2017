@@ -1,0 +1,71 @@
+---
+title: "Tarea 2 - 2017/08/28"
+output: html_notebook
+---
+#Tarea 2 - 2017/08/28
+
+#Introducción
+
+Datos descargados de `https://archive.ics.uci.edu/ml/machine-learning-databases/housing/`
+
+Leyendo el archivo
+
+```{r}
+library(readr)
+library(dplyr)
+set.seed(175904)
+housing = read.csv2("housing.data", header = FALSE, sep = "", col.names = c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT", "MEDV"))
+housing$id = seq.int(nrow(housing))
+housing_l = sample_n(housing, 400) #learning df
+housing_t = housing[!(housing$id %in% housing_l$id),] #test df
+#housing = housing[,!(names(housing) %in% c("id"))]
+#housing_l = housing_l[(names(housing))]
+#alternativo test_t
+#housing_t = anti_join(housing, housing_l, by = "id") 
+#housing_t = housing_t[(names(housing))]
+```
+
+## Descripción de la muestra
+
+Esta es la descripción de las variables de la muestra de prueba. Por ejemplo: rango, media, mediana, por ejemplo.
+
+### Para los datos de entrenamiento
+
+```{r}
+summary(housing_l)
+```
+
+
+### Para los datos de prueba
+
+```{r}
+summary(housing_t)
+```
+
+## MEDV utilizando RSS (Residual Sum of Squares)
+
+```{r}
+rss_calc <- function(datos){
+  y <- datos$MEDV
+  x <- datos$RM
+  fun_out <- function(beta){
+    y_hat <- beta[1] + beta[2]*x
+    e <- (y - y_hat)
+    rss <- sum(e^2)
+    0.5*rss
+  }
+  fun_out
+}
+
+#rss = rss_calc(housing_l)
+#rss(c(3.5,25))
+
+#model1 = lm(MEDV ~ NOX, data = housing_l)
+pairs(MEDV~CRIM + ZN + INDUS + CHAS + NOX + RM ,data=housing_l)
+
+```
+
+```{r}
+pairs(MEDV~AGE + DIS + RAD + TAX + PTRATIO + B + LSTAT, data=housing_l)
+```
+
