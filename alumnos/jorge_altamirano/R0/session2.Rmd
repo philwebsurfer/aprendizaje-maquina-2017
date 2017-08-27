@@ -13,8 +13,11 @@ Leyendo el archivo
 ```{r}
 library(readr)
 library(dplyr)
+library(ggplot2)
+library(purrr)
+library(knitr)
 set.seed(175904)
-housing = read.csv2("housing.data", header = FALSE, sep = "", col.names = c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT", "MEDV"))
+housing = read.csv("housing.data", header = FALSE, sep = "", col.names = c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT", "MEDV"))
 housing$id = seq.int(nrow(housing))
 housing_l = sample_n(housing, 400) #learning df
 housing_t = housing[!(housing$id %in% housing_l$id),] #test df
@@ -42,14 +45,51 @@ summary(housing_l)
 summary(housing_t)
 ```
 
-## MEDV utilizando RSS (Residual Sum of Squares)
+## MEDV 
+
+Observando todas las variables respecto a MEDV...
+```{r}
+pairs(MEDV~AGE + DIS + RAD + TAX + PTRATIO + B + LSTAT, data=housing_l)
+```
+```{r}
+pairs(MEDV~CRIM + ZN + INDUS + CHAS + NOX + RM, data=housing_l)
+```
+
+#### Modelo lineal general
+
+```{r}
+model1 = lm(MEDV ~ AGE + DIS + RAD + TAX + PTRATIO + B + LSTAT + CRIM + ZN + INDUS + CHAS + NOX + RM, data = housing_l)
+summary(model1)
+```
+
+
+Se observa que las variables más relevante imho son:
+* LSTAT: % de la gente de clase baja
+* RM: Habitaciones en la propiedad
+<!-- * B: Proporción de gente de color -->
+<!-- * DIS: distancia a alguno de los 5 centros de trabajo de Boston -->
+<!-- * NOX: concentración de NOx (contaminación) -->
+<!-- * PTRATIO: Proporción alumno-docente -->
+<!-- * CHAS: Índice de accesibilidad a autopistas -->
+
+
+Ingresándolas a un modelo lineal...
+
+```{r}
+model1 = lm(MEDV ~ LSTAT + RM, data = housing_l)
+summary(model1)
+```
+
+
+## MEDV: RSS (Residual Sum of Squares)
 
 ```{r}
 rss_calc <- function(datos){
   y <- datos$MEDV
-  x <- datos$RM
+  x1 <- datos$LSTAT
+  x2 <- datos$RM
   fun_out <- function(beta){
-    y_hat <- beta[1] + beta[2]*x
+    y_hat <- beta[1] + beta[2]*x1 + beta[3]*x2
     e <- (y - y_hat)
     rss <- sum(e^2)
     0.5*rss
@@ -57,15 +97,57 @@ rss_calc <- function(datos){
   fun_out
 }
 
-#rss = rss_calc(housing_l)
-#rss(c(3.5,25))
+rss <- rss_calc(housing_l)
+beta <- c(33.95616, -0.92478, 5.34982)
+rss(beta)
+```
 
-#model1 = lm(MEDV ~ NOX, data = housing_l)
-pairs(MEDV~CRIM + ZN + INDUS + CHAS + NOX + RM ,data=housing_l)
+###Prueba 
 
+Usando los valores de regresión lineal ahora en los valores de prueba
+```{r}
+ggplot(housing_t, aes(x = LSTAT, y = MEDV, color = RM)) + geom_point() +
+  geom_abline(slope=beta[2], intercept=beta[1], color="blue", size=1.1)
 ```
 
 ```{r}
-pairs(MEDV~AGE + DIS + RAD + TAX + PTRATIO + B + LSTAT, data=housing_l)
+res_opt <- optim(c(0,0, 0), rss, method = 'BFGS')
+beta_hat <- res_opt$par
+beta_hat
+```
+```{r}
+res_opt$convergence
+```
+
+```{r}
+ggplot(housing_t, aes(x=LSTAT, y=MEDV, color=B)) + geom_point() +
+  scale_color_gradient(low = "yellow", high = "red") +
+  geom_abline(slope=beta[2], intercept=beta[1], color="blue", size=1.1) +
+  geom_abline(slope=beta_hat[2], intercept=beta_hat[1], color="red", size=3.1)
+```
+
+### Errores
+
+```{r}
+error_f <- function(df){
+  function(mod){
+    preds <- predict(mod, newdata = df)
+    round(sqrt(mean((preds-df$y)^2)))
+  }
+}
+```
+
+#### Error de Entrenamiento
+
+```{r}
+error_l <- error_f(housing_l)
+kable(map_dbl(housing_l, rss), format = 'html')
+```
+
+#### Error de Prueba
+
+```{r}
+error_t <- error_f(housing_t)
+kable(map_dbl(housing_t, rss), format = "html")
 ```
 
