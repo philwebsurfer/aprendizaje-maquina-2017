@@ -76,7 +76,7 @@ Se observa que las variables más relevante imho son:
 Ingresándolas a un modelo lineal...
 
 ```{r}
-model1 = lm(MEDV ~ LSTAT + RM, data = housing_l)
+model1 = lm(MEDV ~ LSTAT + B, data = housing_l)
 summary(model1)
 ```
 
@@ -143,21 +143,20 @@ ggplot(housing_t, aes(x=LSTAT, y=MEDV, color=B)) + geom_point() +
 ```{r}
 error_f <- function(df){
   function(mod){
-    # if(typeof(mod) == "closure") {
-    #   beta2 = c(-3.5288493, -0.6035707,  5.3498213)
-    #   rss2 = rss_calc(df)
-    #   preds = rss2(beta2)
-    # } else {
-    # }
-    preds <- predict(mod, newdata = df)
+    if(typeof(mod) == "closure") {
+      rss2 = rss_calc(df)
+      preds = rss2(c(-3.5288493, -0.6035707,  5.3498213))
+    } else {
+      preds <- predict(mod, newdata = df%>%select(LSTAT, B))
+    }
+    
     round(sqrt(mean((preds-df$MEDV)^2)))
   }
 }
-
 error_l <- error_f(housing_l)
 error_t <- error_f(housing_t)
-df_mods <- data.frame(name = c('y=mx+b', 'loess 1', 'loess 5', 'loess 20', 'loess 50'))
-df_mods$model = list(model1, loess1, loess5, loess20, loess50)
+df_mods <- data.frame(name = c('rss', 'y=mx+b', 'loess 1', 'loess 5', 'loess 20', 'loess 50'))
+df_mods$model = list(rss, model1, loess1, loess5, loess20, loess50)
 df_mods <- df_mods %>% mutate(error_l = map_dbl(model, error_l))
 df_mods <- df_mods %>% mutate(error_t = map_dbl(model, error_t))
 df_mods
