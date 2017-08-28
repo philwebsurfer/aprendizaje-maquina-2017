@@ -106,8 +106,16 @@ rss(beta)
 
 Usando los valores de regresión lineal ahora en los valores de prueba
 ```{r}
+loess1 = loess(MEDV ~ LSTAT + B, data = housing_l, span=1)
+loess5 = loess(MEDV ~ LSTAT + B, data = housing_l, span=5)
+loess20 = loess(MEDV ~ LSTAT + B, data = housing_l, span=20)
+loess50 = loess(MEDV ~ LSTAT + B, data = housing_l, span=50)
 ggplot(housing_t, aes(x = LSTAT, y = MEDV, color = RM)) + geom_point() +
-  geom_abline(slope=beta[2], intercept=beta[1], color="blue", size=1.1)
+  geom_abline(slope=beta[2], intercept=beta[1], color="blue", size=1.1) + 
+  geom_smooth(se =FALSE, colour='green', size=1.1, span=1, method='loess') +
+  geom_smooth(se =FALSE, colour='brown', size=1.1, span=5, method='loess') +
+  geom_smooth(se =FALSE, colour='purple', size=1.1, span=20, method='loess') +
+  geom_smooth(se =FALSE, colour='pink', size=1.1, span=50, method='loess')
 ```
 
 ```{r}
@@ -123,31 +131,37 @@ res_opt$convergence
 ggplot(housing_t, aes(x=LSTAT, y=MEDV, color=B)) + geom_point() +
   scale_color_gradient(low = "yellow", high = "red") +
   geom_abline(slope=beta[2], intercept=beta[1], color="blue", size=1.1) +
-  geom_abline(slope=beta_hat[2], intercept=beta_hat[1], color="red", size=3.1)
+  geom_abline(slope=beta_hat[2], intercept=beta_hat[1], color="red", size=3.1) +
+  geom_smooth(se =FALSE, colour='green', size=1.1, span=1, method='loess', data = housing_l, show.legend = TRUE) +
+  geom_smooth(se =FALSE, colour='brown', size=1.1, span=5, method='loess', data = housing_l) +
+  geom_smooth(se =FALSE, colour='purple', size=1.1, span=20, method='loess', data = housing_l) +
+  geom_smooth(se =FALSE, colour='pink', size=1.1, span=50, method='loess', data = housing_l)
 ```
 
-### Errores
+## Errores de Entrenamiento y Prueba
 
 ```{r}
 error_f <- function(df){
   function(mod){
+    # if(typeof(mod) == "closure") {
+    #   beta2 = c(-3.5288493, -0.6035707,  5.3498213)
+    #   rss2 = rss_calc(df)
+    #   preds = rss2(beta2)
+    # } else {
+    # }
     preds <- predict(mod, newdata = df)
-    round(sqrt(mean((preds-df$y)^2)))
+    round(sqrt(mean((preds-df$MEDV)^2)))
   }
 }
-```
 
-#### Error de Entrenamiento
-
-```{r}
 error_l <- error_f(housing_l)
-kable(map_dbl(housing_l, rss), format = 'html')
+error_t <- error_f(housing_t)
+df_mods <- data.frame(name = c('y=mx+b', 'loess 1', 'loess 5', 'loess 20', 'loess 50'))
+df_mods$model = list(model1, loess1, loess5, loess20, loess50)
+df_mods <- df_mods %>% mutate(error_l = map_dbl(model, error_l))
+df_mods <- df_mods %>% mutate(error_t = map_dbl(model, error_t))
+df_mods
 ```
 
 #### Error de Prueba
-
-```{r}
-error_t <- error_f(housing_t)
-kable(map_dbl(housing_t, rss), format = "html")
-```
 
