@@ -563,7 +563,7 @@ Sin embargo, consideremos que tenemos una nueva muestra (de prueba).
 ```{r, fig.width=5, fig.asp=0.7}
 set.seed(218052272)
 x_0 <- sample(0:13, 100, replace = T)
-error <- rnorm(length(x), 0, 500)
+error <- rnorm(length(x_0), 0, 500)
 y_0 <- f(x_0) + error
 datos_prueba <- data_frame(x = x_0, y = y_0)
 datos_prueba
@@ -662,7 +662,7 @@ modelo. A este conjunto le llamaremos {\em conjunto o muestra de entrenamiento}
 
 
 
-## ¿Cómo estimar $f$? 
+## ¿Cómo estimar f? 
 
 
 Los métodos para construir la estimación $\hat{f}$ se dividen en dos
@@ -775,7 +775,7 @@ datos (aprendizaje no supervisado).
 
 - En aprendizaje supervisado, el esquema general es: 
   - un algoritmo aprende de una
-muestra de entrenamiento ${\mathcal L}$, que es generada por el proceso generador de datos que nos interesa. Eso quiere decir que produce una función $hat{f}$ (a partir de ${\matchal L}$) que nos sirve para hacer predicciones $x \to \hat{f}(x)$ de $y$
+muestra de entrenamiento ${\mathcal L}$, que es generada por el proceso generador de datos que nos interesa. Eso quiere decir que produce una función $\hat{f}$ (a partir de ${\mathcal L}$) que nos sirve para hacer predicciones $x \to \hat{f}(x)$ de $y$
   - El error de predicción del algoritmo es $Err$, que mide en promedio qué tan lejos están las predicciones de valores reales.
   - Para estimar esta cantidad usamos una muestra de prueba ${\mathcal T}$, que
   es independiente de ${\mathcal L}$.
