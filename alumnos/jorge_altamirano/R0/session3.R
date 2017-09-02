@@ -5,26 +5,30 @@ library(purrr)
 library(kknn)
 
 
+set.seed(175904)
 # Modelo verdadero
 p_1 <- function(x){
   ifelse(x < 15, 0.95, 0.95 - 0.007 * (x - 15))
 }
 
 # Simular muestra de entrenamiento
-set.seed(1121)
 x <- pmin(rexp(500,1/30),100)
 probs <- p_1(x)
 g <- ifelse(rbinom(length(x), 1, probs)==1 ,1, 2)
 dat_ent <- data_frame(x = x, p_1 = probs, g = factor(g))
 dat_ent <- dat_ent %>% select(x, g) 
-head(dat_ent)
+ggplot(dat_ent, aes(x=x)) + 
+  geom_jitter(aes(color = g, y = as.numeric(g=='1')), width = 0, height = 0.1)
+# head(dat_ent)
 
 # Simular muestra de prueba
 x <- pmin(rexp(1000,1/30),100)
 probs <- p_1(x)
 g <- ifelse(rbinom(length(x), 1, probs)==1 ,1, 2)
 dat_prueba <- data_frame(x = x, g = factor(g))
-head(dat_prueba)
+ggplot(dat_ent, aes(x=x)) + 
+  geom_jitter(aes(color = g, y = as.numeric(g=='1')), width = 0, height = 0.1)
+# head(dat_prueba)
 
 
 ########################
@@ -37,7 +41,6 @@ s <- function(x) {
   -2*log(x)
 }
 
-
 ## Completa esta función
 
 dev_calc <- function(dat_ent, dat){
@@ -46,6 +49,12 @@ dev_calc <- function(dat_ent, dat){
                 test = dat, kernel = 'rectangular')
     dat$hat_p_1 <- predict(vmc, type ='prob')[,1]
     dat$hat_p_2 <- predict(vmc, type ='prob')[,2]
+    dat <- dat %>%
+      mutate(hat_p_g = ifelse(g == 1, hat_p_1, hat_p_2)) %>%
+      mutate(dev = s(hat_p_g))
+    error_dev <- dat %>% ungroup %>% 
+      summarise(dev_prom = mean(dev)) %>%
+      pull(dev_prom)
     ## calcula aquí error_dev, que debe ser 
     ## la devianza promedio sobre la muestra dat
     error_dev
