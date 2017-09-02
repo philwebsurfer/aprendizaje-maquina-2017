@@ -636,7 +636,7 @@ p_logistico <- function(beta_0, beta_1){
     h(z)
   }
 }
-p_mod_1 <- p_logistico(5, -0.1)
+p_mod_1 <- p_logistico(-20, 1)
 p_mod_2 <- p_logistico(3, -0.04)
 graf_data <- graf_data %>% 
   mutate(p_mod_1 = p_mod_1(x), p_mod_2 = p_mod_2(x))
@@ -701,12 +701,12 @@ y definimos la devianza sobre el conjunto de entrenamiento
 $$D(\beta) = -2\sum_{i=1}^N \log(p_{y^{(i)}} (x^{(i)})).$$ 
 
 Los **coeficientes estimados por regresión logística** están dados por
-$$\hat{\beta} = \arg\max_\beta D(\beta)$$
+$$\hat{\beta} = \arg\min_\beta D(\beta)$$
 
 Para minimizar utilizaremos descenso en gradiente (aunque hay más opciones).
 
 La última expresión para $D(\beta)$ puede ser difícil de operar, pero podemos reescribir como:
-$$D(\beta) = -2\sum_{i=1}^N y_i \log(p_{1} (x^{(i)})) + (1-y^{(i)}) \log(p_{1} (x^{(i)})).$$ 
+$$D(\beta) = -2\sum_{i=1}^N y_i \log(p_{1} (x^{(i)})) + (1-y^{(i)}) \log(p_{0} (x^{(i)})).$$ 
 
 
 Para hacer descenso en gradiente, necesitamos encontrar $\frac{\partial D}{\beta_j}$
@@ -762,8 +762,8 @@ grad_calc <- function(x_ent, y_ent){
   salida_grad <- function(beta){
     p_beta <- h(as.matrix(cbind(1, x_ent)) %*% beta) 
     e <- y_ent - p_beta
-    grad_out <- -2*apply(t(cbind(1,x_ent)) %*% e, 1, sum)
-    names(grad_out)[1] <- 'Intercept'
+    grad_out <- -2*as.numeric(t(cbind(1,x_ent)) %*% e)
+    names(grad_out) <- c('Intercept', colnames(x_ent))
     grad_out
   }
   salida_grad
@@ -810,6 +810,11 @@ mod_1$deviance
 devianza(iteraciones[200,])
 ```
 
+Nótese que esta devianza está calculada sin dividir intre entre el número de casos. Podemos calcular la devianza promedio de entrenamiento haciendo:
+
+```{r}
+devianza(iteraciones[200,])/nrow(dat_ent)
+```
 
 ## Observaciones adicionales
 
@@ -977,7 +982,7 @@ Ahora calculamos devianza de prueba y error de clasificación:
 x_prueba <- diabetes_pr_s %>% select(age:skin) %>% as.matrix
 y_prueba <- diabetes_pr_s$type == 'Yes'
 dev_prueba <- devianza_calc(x_prueba, y_prueba)
-dev_prueba(iteraciones[1000,])
+dev_prueba(iteraciones[1000,])/nrow(x_prueba)
 ```
 
 Y para el error clasificación de prueba, necesitamos las probabilidades de clase ajustadas:
@@ -990,3 +995,4 @@ mean(y_prueba != y_pred)
 
 ### Tarea {-}
 
+La tarea está en el documento *scripts/tarea_3.Rmd* del repositorio.
