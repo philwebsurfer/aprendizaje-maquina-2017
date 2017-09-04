@@ -74,12 +74,13 @@ descenso <- function(n, z_0, eta, h_deriv){
 }
 
 digitos_entrena$y <- as.numeric(digitos_entrena$digito<5)
-digitos_entrena <- digitos_entrena %>% mutate(id=1:n()) %>% gather(pixel, x, pixel_1:pixel_256)
+digitos_entrena <- digitos_entrena %>% mutate(id=1:n())
+digitos_entrena <- digitos_entrena %>% gather(pixel, x, pixel_1:pixel_256)
 #normalización
 digitos_entrena <- digitos_entrena %>% ungroup %>% mutate(x_s = (x - mean(x))/sd(x))
 
 #digitos_entrena %>% spread(key = pixel, value = x, fill = TRUE, drop = FALSE)
-digitos_entrena 
+tail(digitos_entrena)
 ```
 
 Me aparece este error post normalización al utilizar ```spread```
