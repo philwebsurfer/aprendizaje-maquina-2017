@@ -73,10 +73,12 @@ dev_prueba(10)
 ## Parte 2: ajuste y evaluación
 
 modelos <- data_frame(k=c(5, 20, 60, 200 , 400))
+modelos
 
 modelos <- modelos %>% rowwise %>% 
   mutate(dev_ent = dev_ent(k), dev_prueba = dev_prueba(k))
   ### escribe aquí tu código para calcular devianza de entrenamiento y prueba)
+  
 modelos
 
 #################
@@ -89,5 +91,13 @@ vmc <- kknn(g ~ x, train = dat_ent,  k = 5,
 graf_data$p_1 <- vmc$prob[ ,1]
 
 ## aquí tu código para graficar el modelo ajustado
+ggplot(dat_ent, aes(x = x, y= as.numeric(g==1))) + geom_jitter(width=0, height=0.1) +
+  geom_line(data=graf_data, aes(x=x, y=p_1), colour ='red')
 
+graf_data <- data_frame(x = seq(0,100, 1))
+vmc <- kknn(g ~ x, train = dat_ent,  k = 200,
+            test = graf_data, kernel = 'rectangular')
+graf_data$p_1 <- vmc$prob[ ,1]
 
+ggplot(dat_ent, aes(x = x, y= as.numeric(g==1))) + geom_jitter(width=0, height=0.1) +
+  geom_line(data=graf_data, aes(x=x, y=p_1), colour ='red')
