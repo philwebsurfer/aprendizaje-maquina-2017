@@ -1,5 +1,5 @@
 ---
-title: "Tarea 3: 04/09/2017"
+title: "Tarea 3: Regresión Logística 04/09/2017"
 output: html_notebook
 ---
 ```{r imports, warning=FALSE}
@@ -9,6 +9,7 @@ library(tidyr)
 ```
 
 # Tarea 3: Regresión Logística 04/09/2017
+_Jorge III Altamirano Astorga_
 
 Identificación de dígitos "altos": 5, 6, 7, 8, 9.
 
@@ -73,9 +74,8 @@ descenso <- function(n, z_0, eta, h_deriv){
 }
 
 digitos_entrena$y <- as.numeric(digitos_entrena$digito<5)
+digitos_entrena <- digitos_entrena %>% mutate(id=1:n()) %>% gather(pixel, x, pixel_1:pixel_256)
 #normalización
-digitos_entrena <- digitos_entrena %>% mutate(id=1:n()) %>% gather(pixel, x, pixel_1:pixel_256) 
-# digitos_entrena <- digitos_entrena %>% mutate(pixel = parse_number(pixel))
 digitos_entrena <- digitos_entrena %>% ungroup %>% mutate(x_s = (x - mean(x))/sd(x))
 
 #digitos_entrena %>% spread(key = pixel, value = x, fill = TRUE, drop = FALSE)
