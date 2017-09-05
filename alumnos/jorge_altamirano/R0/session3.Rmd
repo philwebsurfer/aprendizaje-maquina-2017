@@ -79,12 +79,11 @@ digitos_entrena <- digitos_entrena %>% gather(pixel, x, pixel_1:pixel_256)
 #normalización
 digitos_entrena <- digitos_entrena %>% ungroup %>% mutate(x_s = (x - mean(x))/sd(x))
 
-#digitos_entrena %>% spread(key = pixel, value = x, fill = TRUE, drop = FALSE)
+digitos_entrena %>% spread(key = pixel, value = x, fill = TRUE, drop = FALSE)
 tail(digitos_entrena)
 ```
 
 Me aparece este error post normalización al utilizar ```spread```
 ```{r}
-knitr::include_graphics(path = c("error_spread.jpg"))
+knitr::include_graphics(path = c("error_spread.jpg","errors_spread2.jpg"))
 ```
-

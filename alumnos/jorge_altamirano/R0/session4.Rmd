@@ -1,0 +1,19 @@
+---
+title: "Sesión 4. 04/09/2017"
+output: html_notebook
+---
+
+## Diabetes: matriz de confusión
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+diabetes_ent <- as_data_frame(MASS::Pima.tr)
+diabetes_pr <- as_data_frame(MASS::Pima.te)
+mod_1 <- glm(type ~ glu, data = diabetes_ent, family = 'binomial')
+preds_prueba <- predict(mod_1, newdata = diabetes_pr, type = "response")
+diabetes_pr <- diabetes_pr %>% mutate(preds = preds_prueba)
+diabetes_pr <- diabetes_pr %>% mutate(predicted = ifelse(preds < 0.5, 1,2))
+diabetes_pr <- diabetes_pr %>% mutate(error = ifelse(as.numeric(type) != predicted, 2, 1))
+View(diabetes_pr)
+```
