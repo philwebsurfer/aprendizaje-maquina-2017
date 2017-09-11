@@ -139,7 +139,8 @@ tableplot(spam_prueba[, 59:61], sortCol = probs_test4)
 ### ¿Qué es mejor: tener muchos falsos positivos o falsos negativos?
 
 En mi experiencia es mejor tener un buen balance de falsos positivos con falsos negativos, debido a que ambos extremos causan problemas a Usuarios Finales (áreas fuera de TI). Aquí cito algunos ejemplos:
-* Se generan muchos tickets y molestia por la falta de _accuracy_ pues requieren que se liberen correos en la lista de SPAM por falsos pisitovs 
+
+* Se generan muchos tickets y molestia por la falta de _accuracy_ pues requieren que se liberen correos en la lista de SPAM por falsos positivos.
 * Se genera aún mayor molestia cuando se reciben correos con ligas a malware, donde existe pérdida de datos (como es el caso del _ransomware_ (secuestro de información)); lo cual se presenta en los falsos negativos
 * El tener muchos falsos negativos causan que los spammers muchas veces puedan validar cuentas de correo, lo cual crea un círculo vicioso donde la gente que abre algunos correos falsos negativos recibe aún más spam.
 * Es más difícil recibir retroalimentación de usuarios de falsos negativos en muchos casos, pues no generan reportes, y los dejan pasar por alto.
