@@ -136,6 +136,14 @@ tableplot(spam_prueba[, 59:61], sortCol = probs_test4)
 
 ## _Especificidad Alta_ Versus _Sensibilidad Alta_
 
+```{r}
+especificidad = table(spam_prueba$probs_test3 > 0.5, spam_prueba$spam)
+especificidad
+prop.table(especificidad)
+```
+
+
+
 ### ¿Qué es mejor: tener muchos falsos positivos o falsos negativos?
 
 En mi experiencia es mejor tener un buen balance de falsos positivos con falsos negativos, debido a que ambos extremos causan problemas a Usuarios Finales (áreas fuera de TI). Aquí cito algunos ejemplos:
