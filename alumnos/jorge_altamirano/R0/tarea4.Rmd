@@ -1,0 +1,141 @@
+---
+title: "Tarea 4: 11/09/2017"
+output: html_notebook
+---
+## Tarea 4: 10/09/2017
+_Jorge Altamirano_
+
+```{r librerías, message=FALSE, warning=FALSE}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(tabplot)
+set.seed(175904)
+```
+
+```{r inicialización con CF vars, message=FALSE}
+columns2keep = c("cfsc", "cfpar", "cfbrack", "cfexc", 
+                 "cfdollar", "cfpound", "spam")
+spam_entrena <- read_csv('spam-entrena.csv')
+spam_prueba <- read_csv('spam-prueba.csv')
+spam_entrena <- spam_entrena[, names(spam_entrena) %in% columns2keep]
+spam_prueba <- spam_prueba[, names(spam_prueba) %in% columns2keep]
+rm(columns2keep)
+spam_entrena$spam <- as.factor(spam_entrena$spam)
+spam_prueba$spam <- as.factor(spam_prueba$spam)
+```
+
+```{r tabla cf}
+table(spam_entrena$spam)
+```
+
+```{r glimpse cf}
+glimpse(spam_entrena)
+```
+
+```{r summary cf}
+summary(spam_entrena)
+```
+
+
+```{r mod1 cf}
+mod1 <- glm(spam ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpound,
+            spam_entrena,
+            family = "binomial")
+# head(spam_prueba)
+```
+## Con las variables CF... (Frecuencia de caracter)
+
+### Curva ROC Entrenamiento con Variables de CF (Frecuencia de Caracter)
+
+```{r roc model1 train cf}
+spam_entrena$probs_test1 <- predict(mod1, newdata = spam_entrena,
+  spam = "response")
+tableplot(spam_entrena, sortCol = probs_test1)
+```
+
+### Curva ROC Prueba con Variables de CF (Frecuencia de Caracter)
+
+```{r roc model1 test cf}
+spam_prueba$probs_test1 <- predict(mod1, newdata = spam_prueba,
+                                      spam = "response")
+tableplot(spam_prueba, sortCol = probs_test1)
+```
+
+## Prueba con modelo Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
+
+```{r roc mod2 cf}
+mod2 <- glm(as.integer(spam) ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpound,
+            spam_entrena, 
+            family = "quasipoisson")
+```
+
+### Curva ROC Entrenamiento Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
+
+```{r roc mod2 train cf}
+spam_entrena$probs_test2 <- predict(mod2, newdata = spam_entrena,
+                                      spam = "response")
+tableplot(spam_entrena, 
+          sortCol = probs_test2)
+```
+
+
+### Curva ROC Prueba Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
+
+```{r roc mod2 test cf}
+spam_prueba$probs_test2 <- predict(mod2, newdata = spam_prueba,
+                                      spam = "response")
+tableplot(spam_prueba, sortCol = probs_test2)
+```
+## Con todas las variables 
+
+```{r reinit, message=FALSE, warning=FALSE}
+spam_entrena <- read_csv('spam-entrena.csv')
+spam_prueba <- read_csv('spam-prueba.csv')
+# spam_entrena$spam <- as.factor(spam_entrena$spam)
+# spam_prueba$spam <- as.factor(spam_prueba$spam)
+
+```
+
+```{r}
+mod3 <- glm(spam ~ ., spam_entrena, family = "binomial")
+mod4 <- glm(spam ~ ., spam_entrena, family = "quasipoisson")
+```
+
+### Curva ROC Entrenamiento con Todas las Variables
+
+```{r roc model1 train allvars}
+spam_entrena$probs_test3 <- predict(mod3, newdata = spam_entrena,
+  spam = "response")
+tableplot(spam_entrena[, 59:60], sortCol = probs_test3)
+```
+
+### Curva ROC Prueba con Todas las Variables
+
+```{r roc model1 test allvars}
+spam_prueba$probs_test3 <- predict(mod3, newdata = spam_prueba, spam = "response")
+tableplot(spam_prueba[, 59:60], sortCol = probs_test3)
+```
+
+### Curva ROC Entrenamiento Quasipoisson _"Identidad"_ con Todas las Variables
+
+```{r roc mod2 train allvars}
+spam_entrena$probs_test4 <- predict(mod4, newdata = spam_entrena,
+  spam = "response")
+tableplot(spam_entrena[, 59:61], sortCol = probs_test4)
+```
+
+
+### Curva ROC Prueba Quasipoisson _"Identidad"_ con Todas las Variables
+
+```{r roc mod2 test allvars}
+spam_prueba$probs_test4 <- predict(mod4, newdata = spam_prueba,
+  spam = "response")
+tableplot(spam_prueba[, 59:61], sortCol = probs_test4)
+```
+
+## _Especificidad Alta_ Versus _Sensibilidad Alta_
+
+### ¿Qué es mejor: tener muchos falsos positivos o falsos negativos?
+
+### Matriz de confusión
