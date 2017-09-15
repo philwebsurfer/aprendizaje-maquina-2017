@@ -5,7 +5,7 @@ output: html_notebook
 ## Tarea 4: 10/09/2017
 _Jorge Altamirano_
 
-```{r librerías, message=FALSE, warning=FALSE}
+```{r librerías, message=FALSE, warning=FALSE, error=TRUE}
 library(readr)
 library(tidyr)
 library(dplyr)
@@ -42,23 +42,24 @@ summary(spam_entrena)
 mod1 <- glm(spam ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpound,
             spam_entrena,
             family = "binomial")
+summary(mod1)
 # head(spam_prueba)
 ```
 ## Con las variables CF... (Frecuencia de caracter)
 
 ### Curva ROC Entrenamiento con Variables de CF (Frecuencia de Caracter)
 
-```{r roc model1 train cf}
-spam_entrena$probs_test1 <- predict(mod1, newdata = spam_entrena,
-  spam = "response")
-tableplot(spam_entrena, sortCol = probs_test1)
+```{r roc model1 train cf, warning=FALSE}
+spam_entrena$probs_test1 <- predict(mod1, newdata = spam_entrena, type = 'response')
+summary(spam_entrena$probs_test1)
+tableplot(spam_entrena, sortCol = probs_test1, scale = "lin" )
 ```
 
 ### Curva ROC Prueba con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc model1 test cf}
 spam_prueba$probs_test1 <- predict(mod1, newdata = spam_prueba,
-                                      spam = "response")
+                                      type = "response")
 tableplot(spam_prueba, sortCol = probs_test1)
 ```
 
@@ -74,7 +75,7 @@ mod2 <- glm(as.integer(spam) ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpou
 
 ```{r roc mod2 train cf}
 spam_entrena$probs_test2 <- predict(mod2, newdata = spam_entrena,
-                                      spam = "response")
+                                      type = "response")
 tableplot(spam_entrena, 
           sortCol = probs_test2)
 ```
@@ -84,7 +85,7 @@ tableplot(spam_entrena,
 
 ```{r roc mod2 test cf}
 spam_prueba$probs_test2 <- predict(mod2, newdata = spam_prueba,
-                                      spam = "response")
+                                      type = "response")
 tableplot(spam_prueba, sortCol = probs_test2)
 ```
 ## Con todas las variables 
@@ -106,14 +107,14 @@ mod4 <- glm(spam ~ ., spam_entrena, family = "quasipoisson")
 
 ```{r roc model1 train allvars}
 spam_entrena$probs_test3 <- predict(mod3, newdata = spam_entrena,
-  spam = "response")
+  type = "response")
 tableplot(spam_entrena[, 59:60], sortCol = probs_test3)
 ```
 
 ### Curva ROC Prueba con Todas las Variables
 
 ```{r roc model1 test allvars}
-spam_prueba$probs_test3 <- predict(mod3, newdata = spam_prueba, spam = "response")
+spam_prueba$probs_test3 <- predict(mod3, newdata = spam_prueba, type = "response")
 tableplot(spam_prueba[, 59:60], sortCol = probs_test3)
 ```
 
@@ -121,7 +122,7 @@ tableplot(spam_prueba[, 59:60], sortCol = probs_test3)
 
 ```{r roc mod2 train allvars}
 spam_entrena$probs_test4 <- predict(mod4, newdata = spam_entrena,
-  spam = "response")
+  type = "response")
 tableplot(spam_entrena[, 59:61], sortCol = probs_test4)
 ```
 
@@ -130,7 +131,7 @@ tableplot(spam_entrena[, 59:61], sortCol = probs_test4)
 
 ```{r roc mod2 test allvars}
 spam_prueba$probs_test4 <- predict(mod4, newdata = spam_prueba,
-  spam = "response")
+  type = "response")
 tableplot(spam_prueba[, 59:61], sortCol = probs_test4)
 ```
 
