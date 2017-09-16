@@ -43,8 +43,8 @@ mod1 <- glm(spam ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpound,
             spam_entrena,
             family = "binomial")
 summary(mod1)
-# head(spam_prueba)
 ```
+
 ## Con las variables CF... (Frecuencia de caracter)
 
 ### Curva ROC Entrenamiento con Variables de CF (Frecuencia de Caracter)
@@ -55,20 +55,32 @@ summary(spam_entrena$probs_test1)
 tableplot(spam_entrena, sortCol = probs_test1, scale = "lin" )
 ```
 
+```{r}
+tolerance = 0.24
+table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam)
+prop.table(table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam), 2)
+```
+
+
 ### Curva ROC Prueba con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc model1 test cf}
 spam_prueba$probs_test1 <- predict(mod1, newdata = spam_prueba,
                                       type = "response")
-tableplot(spam_prueba, sortCol = probs_test1)
+tableplot(spam_prueba, sortCol = probs_test1, scales = "lin")
+```
+
+```{r}
+tolerance = 0.27
+table(spam_prueba$probs_test1 > tolerance, spam_prueba$spam)
+prop.table(table(spam_prueba$probs_test1 > tolerance, spam_prueba$spam), 2)
 ```
 
 ## Prueba con modelo Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc mod2 cf}
 mod2 <- glm(as.integer(spam) ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpound,
-            spam_entrena, 
-            family = "quasipoisson")
+            spam_entrena, family = "quasipoisson")
 ```
 
 ### Curva ROC Entrenamiento Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
@@ -80,27 +92,44 @@ tableplot(spam_entrena,
           sortCol = probs_test2)
 ```
 
+Con datos de entrenamiento: 
+
+```{r}
+tolerance = 0.24
+table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam)
+prop.table(table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam), 2)
+```
+
 
 ### Curva ROC Prueba Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc mod2 test cf}
 spam_prueba$probs_test2 <- predict(mod2, newdata = spam_prueba,
-                                      type = "response")
-tableplot(spam_prueba, sortCol = probs_test2)
+  type = "response")
+tableplot(spam_prueba, sortCol = probs_test2, scale = "lin")
 ```
+
+Con datos de prueba
+
+```{r}
+tolerance = 0.24
+table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam)
+prop.table(table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam), 2)
+```
+
+
 ## Con todas las variables 
 
 ```{r reinit, message=FALSE, warning=FALSE}
 spam_entrena <- read_csv('spam-entrena.csv')
 spam_prueba <- read_csv('spam-prueba.csv')
-# spam_entrena$spam <- as.factor(spam_entrena$spam)
-# spam_prueba$spam <- as.factor(spam_prueba$spam)
-
+spam_entrena$spam <- as.factor(spam_entrena$spam)
+spam_prueba$spam <- as.factor(spam_prueba$spam)
 ```
 
 ```{r}
 mod3 <- glm(spam ~ ., spam_entrena, family = "binomial")
-mod4 <- glm(spam ~ ., spam_entrena, family = "quasipoisson")
+mod4 <- glm(as.integer(spam) ~ ., spam_entrena, family = "quasipoisson")
 ```
 
 ### Curva ROC Entrenamiento con Todas las Variables
@@ -135,15 +164,25 @@ spam_prueba$probs_test4 <- predict(mod4, newdata = spam_prueba,
 tableplot(spam_prueba[, 59:61], sortCol = probs_test4)
 ```
 
-## _Especificidad Alta_ Versus _Sensibilidad Alta_
+## Matrices de confusión
+
+### Alta especificidad
 
 ```{r}
-especificidad = table(spam_prueba$probs_test3 > 0.5, spam_prueba$spam)
-especificidad
+tolerance = 0.5
+especificidad = table(spam_prueba$probs_test3 > tolerance, spam_prueba$spam)
+especificidad 
 prop.table(especificidad)
 ```
 
+### Alta especificidad
 
+```{r}
+tolerance = 5e-2
+especificidad = table(spam_prueba$probs_test3 > tolerance, spam_prueba$spam)
+especificidad 
+prop.table(especificidad)
+```
 
 ### ¿Qué es mejor: tener muchos falsos positivos o falsos negativos?
 
@@ -153,6 +192,4 @@ En mi experiencia es mejor tener un buen balance de falsos positivos con falsos 
 * Se genera aún mayor molestia cuando se reciben correos con ligas a malware, donde existe pérdida de datos (como es el caso del _ransomware_ (secuestro de información)); lo cual se presenta en los falsos negativos
 * El tener muchos falsos negativos causan que los spammers muchas veces puedan validar cuentas de correo, lo cual crea un círculo vicioso donde la gente que abre algunos correos falsos negativos recibe aún más spam.
 * Es más difícil recibir retroalimentación de usuarios de falsos negativos en muchos casos, pues no generan reportes, y los dejan pasar por alto.
-
-### Matriz de confusión
 
