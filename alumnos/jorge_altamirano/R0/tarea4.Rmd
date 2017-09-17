@@ -10,6 +10,8 @@ library(readr)
 library(tidyr)
 library(dplyr)
 library(tabplot)
+library(ROCR)
+library(ggplot2)
 set.seed(175904)
 ```
 
@@ -47,7 +49,7 @@ summary(mod1)
 
 ## Con las variables CF... (Frecuencia de caracter)
 
-### Curva ROC Entrenamiento con Variables de CF (Frecuencia de Caracter)
+### Curva Entrenamiento con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc model1 train cf, warning=FALSE}
 spam_entrena$probs_test1 <- predict(mod1, newdata = spam_entrena, type = 'response')
@@ -62,7 +64,7 @@ prop.table(table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam), 2)
 ```
 
 
-### Curva ROC Prueba con Variables de CF (Frecuencia de Caracter)
+### Curva Prueba con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc model1 test cf}
 spam_prueba$probs_test1 <- predict(mod1, newdata = spam_prueba,
@@ -83,7 +85,7 @@ mod2 <- glm(as.integer(spam) ~ cfsc + cfpar + cfbrack + cfexc + cfdollar + cfpou
             spam_entrena, family = "quasipoisson")
 ```
 
-### Curva ROC Entrenamiento Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
+### Curva Entrenamiento Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc mod2 train cf}
 spam_entrena$probs_test2 <- predict(mod2, newdata = spam_entrena,
@@ -101,7 +103,7 @@ prop.table(table(spam_entrena$probs_test1 > tolerance, spam_entrena$spam), 2)
 ```
 
 
-### Curva ROC Prueba Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
+### Curva  Prueba Quasipoisson _"Identidad"_ con Variables de CF (Frecuencia de Caracter)
 
 ```{r roc mod2 test cf}
 spam_prueba$probs_test2 <- predict(mod2, newdata = spam_prueba,
@@ -132,7 +134,7 @@ mod3 <- glm(spam ~ ., spam_entrena, family = "binomial")
 mod4 <- glm(as.integer(spam) ~ ., spam_entrena, family = "quasipoisson")
 ```
 
-### Curva ROC Entrenamiento con Todas las Variables
+### Curva Entrenamiento con Todas las Variables
 
 ```{r roc model1 train allvars}
 spam_entrena$probs_test3 <- predict(mod3, newdata = spam_entrena,
@@ -140,14 +142,14 @@ spam_entrena$probs_test3 <- predict(mod3, newdata = spam_entrena,
 tableplot(spam_entrena[, 59:60], sortCol = probs_test3)
 ```
 
-### Curva ROC Prueba con Todas las Variables
+### Curva Prueba con Todas las Variables
 
 ```{r roc model1 test allvars}
 spam_prueba$probs_test3 <- predict(mod3, newdata = spam_prueba, type = "response")
 tableplot(spam_prueba[, 59:60], sortCol = probs_test3)
 ```
 
-### Curva ROC Entrenamiento Quasipoisson _"Identidad"_ con Todas las Variables
+### Curva Entrenamiento Quasipoisson _"Identidad"_ con Todas las Variables
 
 ```{r roc mod2 train allvars}
 spam_entrena$probs_test4 <- predict(mod4, newdata = spam_entrena,
@@ -164,18 +166,28 @@ spam_prueba$probs_test4 <- predict(mod4, newdata = spam_prueba,
 tableplot(spam_prueba[, 59:61], sortCol = probs_test4)
 ```
 
-## Matrices de confusión
+## Matrices de confusión y ROC
 
 ### Alta especificidad
 
 ```{r}
-tolerance = 0.5
+tolerance = 0.85
 especificidad = table(spam_prueba$probs_test3 > tolerance, spam_prueba$spam)
 especificidad 
 prop.table(especificidad)
 ```
 
-### Alta especificidad
+```{r}
+roc_pred3 <- prediction(spam_prueba$probs_test3, spam_prueba$spam) 
+perf <- performance(roc_pred3, measure = "sens", x.measure = "fpr") 
+roc3 <- data_frame(tfp = perf@x.values[[1]], sens = perf@y.values[[1]], 
+                       d = perf@alpha.values[[1]])
+
+ggplot(roc3, aes(x = tfp, y = sens, colour=d)) + geom_point() +
+  xlab('1-especificidad') + ylab('Sensibilidad')
+```
+
+### Alta sensibilidad
 
 ```{r}
 tolerance = 5e-2
@@ -184,12 +196,22 @@ especificidad
 prop.table(especificidad)
 ```
 
+```{r}
+roc_pred4 <- prediction(spam_prueba$probs_test4, spam_prueba$spam) 
+perf <- performance(roc_pred4, measure = "sens", x.measure = "fpr") 
+roc4 <- data_frame(tfp = perf@x.values[[1]], sens = perf@y.values[[1]], 
+                       d = perf@alpha.values[[1]])
+
+ggplot(roc4, aes(x = tfp, y = sens, colour=d)) + geom_point() +
+  xlab('1-especificidad') + ylab('Sensibilidad')
+```
+
 ### ¿Qué es mejor: tener muchos falsos positivos o falsos negativos?
 
 En mi experiencia es mejor tener un buen balance de falsos positivos con falsos negativos, debido a que ambos extremos causan problemas a Usuarios Finales (áreas fuera de TI). Aquí cito algunos ejemplos:
 
-* Se generan muchos tickets y molestia por la falta de _accuracy_ pues requieren que se liberen correos en la lista de SPAM por falsos positivos.
-* Se genera aún mayor molestia cuando se reciben correos con ligas a malware, donde existe pérdida de datos (como es el caso del _ransomware_ (secuestro de información)); lo cual se presenta en los falsos negativos
+* Se generan muchos _tickets de soporte_ y molestia por la falta de _accuracy_ pues requieren que se liberen correos en la lista de SPAM por falsos positivos.
+* Se genera aún mayor inconveniente y **pérdida de información** cuando se reciben correos con ligas a malware, donde existe pérdida de datos (como es el caso del _ransomware_: secuestro de información); lo cual se presenta en los falsos negativos
 * El tener muchos falsos negativos causan que los spammers muchas veces puedan validar cuentas de correo, lo cual crea un círculo vicioso donde la gente que abre algunos correos falsos negativos recibe aún más spam.
 * Es más difícil recibir retroalimentación de usuarios de falsos negativos en muchos casos, pues no generan reportes, y los dejan pasar por alto.
 
