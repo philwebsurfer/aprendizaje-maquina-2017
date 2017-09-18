@@ -35,15 +35,15 @@ spam_prueba2 <- spam_prueba %>% mutate_each_(funs(scale(.) %>% as.vector),
 
 ```{r ridge}
 x_e <- spam_entrena2 %>% select(-spam, -X1) %>% as.matrix
-x_p <- spam_entrena2 %>% select(-spam, -X1) %>% as.matrix
+x_p <- spam_prueba2 %>% select(-spam, -X1) %>% as.matrix
 mod_ridge <- glmnet(x = x_e, y = spam_entrena2$spam,
     alpha = 0, family = "binomial", intercept = FALSE, nlambda = 50)
 dim(coef(mod_ridge))
 plot(mod_ridge, xvar = 'lambda')
 ```
 
-```{r Probabilidades para los 50 modelos}
-# predict en glmnet produce probabilidades para los 50 modelos
+```{r Probabilidades para los n modelos}
+# predict en glmnet produce probabilidades para los n modelos
 preds_ridge <- predict(mod_ridge, newx = x_p, type = 'response') %>%
   data.frame %>% mutate(X1 = 1:nrow(x_p)) %>%
   gather(modelo, prob, -X1) %>%
@@ -51,22 +51,34 @@ preds_ridge <- predict(mod_ridge, newx = x_p, type = 'response') %>%
   # left_join(spam_prueba2 %>% mutate(X1=1:nrow(spam_prueba2)) %>% select(X1, spam)) #%>%
   inner_join(spam_prueba2 %>% mutate(X1=1:nrow(spam_prueba2)) %>% select(X1, spam))
 summary(preds_ridge)
+paste("Rows: ", nrow(preds_ridge))
 ```
 
 ```{r lambdas, warning=FALSE, message=FALSE}
+devianza  <- function(p, y){
+  -2*mean(y * log(p) + (1-y) * log(1 - p))
+}
 df_lambdas <- data_frame(modelo = attr(mod_ridge$a0, 'names'), 
                          lambda = mod_ridge$lambda)
 devianzas_prueba <- preds_ridge %>% group_by(modelo) %>%
-    summarise(devianza = devianza(prob, spam)) %>% left_join(df_lambdas)
+    summarise(devianza = devianza(prob, spam)) %>% inner_join(df_lambdas)
+# summary(devianzas_prueba)
 ggplot(devianzas_prueba, aes(x = lambda, y= devianza)) + 
   scale_x_log10(breaks = round(2^seq(-5,5,1),2)) +
   geom_point()
 
-devianza  <- function(p, y){
-  -2*mean(y * log(p) + (1-y) * log(1 - p))
-}
-
-preds_ridge %>% group_by(modelo) %>% summarise(devianza = devianza(prob, 1)) 
-summary(preds_ridge)
 ```
 
+```{r}
+devianzas_prueba %>% filter(devianza < 55e-2)
+```
+
+### Coeficientes
+
+```{r}
+h <- function(x){ 1 / (1 + exp(-x))}
+coefs_selec <- coef(mod_ridge)[-1, 's49']
+pred_prueba_final <- h(x_p %*% coefs_selec)
+tab_confusion <- table(pred_prueba_final > 0.24, spam_prueba2$spam)
+tab_confusion
+```
