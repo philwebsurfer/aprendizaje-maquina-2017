@@ -1,0 +1,47 @@
+---
+title: "Tarea 5: 18/09/2017"
+output: html_notebook
+---
+## Tarea 5: 18/09/2017
+_175904 - Jorge III Altamirano Astorga_
+
+```{r librerías, message=FALSE, warning=FALSE, error=TRUE}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(tabplot)
+library(ROCR)
+library(ggplot2)
+library(glmnet)
+set.seed(175904)
+```
+
+### Carga de datos de SPAM
+
+Tomado de [spambase](https://archive.ics.uci.edu/ml/datasets/spambase)
+```{r reinit, message=FALSE, warning=FALSE}
+spam_entrena <- read_csv('spam-entrena.csv')
+spam_prueba <- read_csv('spam-prueba.csv')
+spam_entrena$spam <- as.factor(spam_entrena$spam)
+spam_prueba$spam <- as.factor(spam_prueba$spam)
+```
+
+```{r ridge}
+# dat_e <- datos %>% filter(entrena)
+# dat_p <- datos %>% filter(!entrena)
+x_e <- spam_entrena %>% select(-spam, -X1) %>% as.matrix
+# x_p <- spam_prueba %>% select(-spam, -X1) %>% as.matrix
+# p_entrena <- data_frame(prob_hat_1 = h(mod_1$fitted.values), 
+#                         prob_1 = as.numeric(h(x_e %*% beta)),
+#                         clase = dat_e$y)
+# p_prueba <- data_frame(prob_hat_1 = as.numeric(h(x_p %*% (mod_1$coefficients))), 
+#                        prob_1 = as.numeric(h(x_p %*% beta)),
+#                        clase = dat_p$y)
+mod_ridge <- glmnet(x = x_e, y = spam_entrena$spam,
+    alpha = 0, family = "binomial", intercept = FALSE, nlambda = 50)
+dim(coef(mod_ridge))
+plot(mod_ridge, xvar = 'lambda')
+```
+
+
+
