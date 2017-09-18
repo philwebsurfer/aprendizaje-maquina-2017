@@ -78,6 +78,7 @@ devianzas_prueba %>% filter(devianza < 55e-2)
 ```{r}
 h <- function(x){ 1 / (1 + exp(-x))}
 coefs_selec <- coef(mod_ridge)[-1, 's49']
+coefs_selec
 pred_prueba_final <- h(x_p %*% coefs_selec)
 tab_confusion <- table(pred_prueba_final > 0.24, spam_prueba2$spam)
 tab_confusion

@@ -133,6 +133,12 @@ spam_prueba$spam <- as.factor(spam_prueba$spam)
 mod3 <- glm(spam ~ ., spam_entrena, family = "binomial")
 mod4 <- glm(as.integer(spam) ~ ., spam_entrena, family = "quasipoisson")
 ```
+### Coeficientes con todas las variables
+
+```{r}
+coef(mod3)[c(-1,-2)]
+```
+
 
 ### Curva Entrenamiento con Todas las Variables
 
