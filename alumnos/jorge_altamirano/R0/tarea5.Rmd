@@ -19,29 +19,54 @@ set.seed(175904)
 ### Carga de datos de SPAM
 
 Tomado de [spambase](https://archive.ics.uci.edu/ml/datasets/spambase)
-```{r reinit, message=FALSE, warning=FALSE}
+```{r init & standarization, message=FALSE, warning=FALSE}
 spam_entrena <- read_csv('spam-entrena.csv')
 spam_prueba <- read_csv('spam-prueba.csv')
-spam_entrena$spam <- as.factor(spam_entrena$spam)
-spam_prueba$spam <- as.factor(spam_prueba$spam)
+spam_entrena$spam <- parse_integer(spam_entrena$spam)
+spam_prueba$spam <- parse_integer(spam_prueba$spam)
+
+## Tomado de https://stackoverflow.com/questions/15215457/standardize-data-columns-in-r
+columnas_normalizadas <- c("wfmake", "wfaddress", "wfall", "wf3d", "wfour", "wfover", "wfremove", "wfinternet", "wforder", "wfmail", "wfreceive", "wfwill", "wfpeople", "wfreport", "wfaddresses", "wffree", "wfbusiness", "wfemail", "wfyou", "wfcredit", "wfyour", "wffont", "wf000", "wfmoney", "wfhp", "wfhpl", "wfgeorge", "wf650", "wflab", "wflabs", "wftelnet", "wf857", "wfdata", "wf415", "wf85", "wftechnology", "wf1999", "wfparts", "wfpm", "wfdirect", "wfcs", "wfmeeting", "wforiginal", "wfproject", "wfre", "wfedu", "wftable", "wfconference", "cfsc", "cfpar", "cfbrack", "cfexc", "cfdollar", "cfpound", "crlaverage", "crllongest", "crltotal")
+spam_entrena2 <- spam_entrena %>% mutate_each_(funs(scale(.) %>% as.vector),
+   vars=columnas_normalizadas)
+spam_prueba2 <- spam_prueba %>% mutate_each_(funs(scale(.) %>% as.vector),
+   vars=columnas_normalizadas)
 ```
 
 ```{r ridge}
-# dat_e <- datos %>% filter(entrena)
-# dat_p <- datos %>% filter(!entrena)
-x_e <- spam_entrena %>% select(-spam, -X1) %>% as.matrix
-# x_p <- spam_prueba %>% select(-spam, -X1) %>% as.matrix
-# p_entrena <- data_frame(prob_hat_1 = h(mod_1$fitted.values), 
-#                         prob_1 = as.numeric(h(x_e %*% beta)),
-#                         clase = dat_e$y)
-# p_prueba <- data_frame(prob_hat_1 = as.numeric(h(x_p %*% (mod_1$coefficients))), 
-#                        prob_1 = as.numeric(h(x_p %*% beta)),
-#                        clase = dat_p$y)
-mod_ridge <- glmnet(x = x_e, y = spam_entrena$spam,
+x_e <- spam_entrena2 %>% select(-spam, -X1) %>% as.matrix
+x_p <- spam_entrena2 %>% select(-spam, -X1) %>% as.matrix
+mod_ridge <- glmnet(x = x_e, y = spam_entrena2$spam,
     alpha = 0, family = "binomial", intercept = FALSE, nlambda = 50)
 dim(coef(mod_ridge))
 plot(mod_ridge, xvar = 'lambda')
 ```
 
+```{r Probabilidades para los 50 modelos}
+# predict en glmnet produce probabilidades para los 50 modelos
+preds_ridge <- predict(mod_ridge, newx = x_p, type = 'response') %>%
+  data.frame %>% mutate(X1 = 1:nrow(x_p)) %>%
+  gather(modelo, prob, -X1) %>%
+  # this didn't work! :-P
+  # left_join(spam_prueba2 %>% mutate(X1=1:nrow(spam_prueba2)) %>% select(X1, spam)) #%>%
+  inner_join(spam_prueba2 %>% mutate(X1=1:nrow(spam_prueba2)) %>% select(X1, spam))
+summary(preds_ridge)
+```
 
+```{r lambdas, warning=FALSE, message=FALSE}
+df_lambdas <- data_frame(modelo = attr(mod_ridge$a0, 'names'), 
+                         lambda = mod_ridge$lambda)
+devianzas_prueba <- preds_ridge %>% group_by(modelo) %>%
+    summarise(devianza = devianza(prob, spam)) %>% left_join(df_lambdas)
+ggplot(devianzas_prueba, aes(x = lambda, y= devianza)) + 
+  scale_x_log10(breaks = round(2^seq(-5,5,1),2)) +
+  geom_point()
+
+devianza  <- function(p, y){
+  -2*mean(y * log(p) + (1-y) * log(1 - p))
+}
+
+preds_ridge %>% group_by(modelo) %>% summarise(devianza = devianza(prob, 1)) 
+summary(preds_ridge)
+```
 
