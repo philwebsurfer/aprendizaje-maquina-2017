@@ -83,3 +83,16 @@ pred_prueba_final <- h(x_p %*% coefs_selec)
 tab_confusion <- table(pred_prueba_final > 0.24, spam_prueba2$spam)
 tab_confusion
 ```
+
+### Curvas ROC
+
+```{r}
+head(preds_ridge%>%%>%group_by(modelo)%>%filter(modelo=='s49'))
+roc <- prediction(preds_ridge, spam_prueba$spam) 
+perf <- performance(roc, measure = "sens", x.measure = "fpr") 
+roc4 <- data_frame(tfp = perf@x.values[[1]], sens = perf@y.values[[1]], 
+                       d = perf@alpha.values[[1]])
+ggplot(roc4, aes(x = tfp, y = sens, colour=d)) + geom_point() +
+  xlab('1-especificidad') + ylab('Sensibilidad'
+```
+
