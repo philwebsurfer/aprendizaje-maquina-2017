@@ -1,0 +1,31 @@
+---
+title: "Tarea 6: 25/09/2017"
+output: html_notebook
+---
+## Tarea 6: 25/09/2017
+_175904 - Jorge III Altamirano Astorga_
+
+```{r librerías, message=FALSE, warning=FALSE, error=TRUE}
+library(ggplot2)
+library(keras)
+library(nnet)
+set.seed(175904)
+```
+
+```{r}
+# nn <- nnet(g_1 ~ x_1, data=datos, size = 2, decay=0.0, entropy = T)
+h <- function(x){
+    exp(x)/(1+exp(x))
+}
+x <- seq(-2,2,0.05)
+p <- h(3 + x- 3*x^2 + 3*cos(4*x))
+set.seed(280572)
+x.2 <- runif(300, -2, 2)
+g.2 <- rbinom(300, 1, h(3 + x.2- 3*x.2^2 + 3*cos(4*x.2)))
+datos <- data.frame(x.2,g.2)
+dat.p <- data.frame(x,p)
+g <- qplot(x,p, geom='line', col='red')
+g + geom_jitter(data = datos, aes(x=x.2,y=g.2), col ='black',
+  position =position_jitter(height=0.05), alpha=0.4)
+```
+
