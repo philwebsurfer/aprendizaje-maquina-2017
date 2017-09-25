@@ -13,19 +13,44 @@ set.seed(175904)
 ```
 
 ```{r}
-# nn <- nnet(g_1 ~ x_1, data=datos, size = 2, decay=0.0, entropy = T)
+set.seed(175904)
 h <- function(x){
     exp(x)/(1+exp(x))
 }
 x <- seq(-2,2,0.05)
 p <- h(3 + x- 3*x^2 + 3*cos(4*x))
-set.seed(280572)
 x.2 <- runif(300, -2, 2)
 g.2 <- rbinom(300, 1, h(3 + x.2- 3*x.2^2 + 3*cos(4*x.2)))
 datos <- data.frame(x.2,g.2)
 dat.p <- data.frame(x,p)
-g <- qplot(x,p, geom='line', col='red')
-g + geom_jitter(data = datos, aes(x=x.2,y=g.2), col ='black',
-  position =position_jitter(height=0.05), alpha=0.4)
+
+qplot(x,p, geom='line', colour=I('red')) +
+  geom_jitter(data = datos, aes(x=x.2,y=g.2), col ='black', 
+    position = position_jitter(height=0.05), alpha=0.4) #+
+
+
+```
+
+```{r}
+set.seed(175904)
+# print(data.frame(x.2 = x.2, x.3 = x.3, g.2 = g.2))
+nn <- nnet(g.2 ~ log(x.2^4) + x.2, data=datos, size = 4, decay=0.0, entropy = T)
+nn2 <- nnet(g.2 ~ log(x.2^4)  , data=datos, size = 3, decay=0.0, entropy = T)
+qplot(x,p, geom='line', colour=I('black')) +
+  geom_line(data = datos, aes(x = x.2, y = predict(nn, newx = x.2), colour = I("blue"))) + 
+  geom_line(data = datos, aes(x = x.2, y = predict(nn2, newx = x.2), colour = I("green"))) +
+  geom_jitter(data = datos, aes(x=x.2,y=g.2), col = 'black', 
+        position = position_jitter(height=0.05), alpha=0.4) #+
+```
+
+#### Interacciones entre redes neurales
+
+```{r}
+# p <- function(x1, x2){
+#   h(-5 + 10*x1 + 10*x2 - 30*x1*x2)
+# }
+# dat <- expand.grid(x.2 = x, g.2 = p)
+# dat <- dat %>% mutate(p = p(x.2, p))
+ggplot(datos, aes(x=x, y=p)) #+ geom_tile(aes(fill=p))
 ```
 
