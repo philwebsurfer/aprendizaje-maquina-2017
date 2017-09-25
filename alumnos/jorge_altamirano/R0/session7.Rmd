@@ -1,0 +1,81 @@
+---
+title: "Session 7: 25/09/2017"
+output: html_notebook
+---
+```{r}
+if(Sys.info()['nodename'] == 'vainilla.local'){
+  # esto es por mi instalación particular de tensorflow - típicamente
+  # no es necesario que corras esta línea.
+  Sys.setenv(TENSORFLOW_PYTHON="/usr/local/bin/python")
+}
+library(keras)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+diabetes_ent <- MASS::Pima.tr
+diabetes_pr <- MASS::Pima.te
+set.seed(293)
+x_ent <- diabetes_ent %>% select(-type) %>% as.matrix
+x_ent_s <- scale(x_ent)
+x_valid <- diabetes_pr %>% select(-type) %>% as.matrix 
+x_valid_s <- x_valid %>%
+  scale(center = attr(x_ent_s, 'scaled:center'), scale = attr(x_ent_s,  'scaled:scale'))
+y_ent <- as.numeric(diabetes_ent$type == 'Yes')
+y_valid <- as.numeric(diabetes_pr$type == 'Yes')
+```
+
+```{r}
+set.seed(9232)
+modelo_tc <- keras_model_sequential() 
+# no es necesario asignar a nuevo objeto, modelo_tc es modificado al agregar capas
+modelo_tc %>% 
+  layer_dense(units = 10, activation = 'sigmoid', 
+              kernel_regularizer = regularizer_l2(l = 1e-4), 
+              kernel_initializer = initializer_random_uniform(minval = -0.5, maxval = 0.5),
+              input_shape=7) %>%
+  layer_dense(units = 10, activation = 'sigmoid', 
+              kernel_regularizer = regularizer_l2(l = 1e-4), 
+              kernel_initializer = initializer_random_uniform(minval = -0.5, maxval = 0.5)) %>%
+  layer_dense(units = 1, activation = 'sigmoid',
+              kernel_regularizer = regularizer_l2(l = 1e-4),
+              kernel_initializer = initializer_random_uniform(minval = -0.5, maxval = 0.5)
+)
+```
+```{r}
+modelo_tc %>% compile(
+  loss = 'binary_crossentropy',
+  optimizer = optimizer_sgd(lr = 0.5),
+  metrics = c('accuracy'))
+```
+
+```{r}
+iteraciones <- modelo_tc %>% fit(
+  x_ent_s, y_ent, 
+  #batch size mismo que nrow(x_ent_s) es descenso en grad.
+  epochs = 500, batch_size = nrow(x_ent_s), 
+  verbose = 0,
+  validation_data = list(x_valid_s, y_valid)
+)
+score <- modelo_tc %>% evaluate(x_valid_s, y_valid)
+score
+```
+
+```{r}
+tab_confusion <- table(modelo_tc %>% predict_classes(x_valid_s),y_valid) 
+tab_confusion
+```
+
+```{r}
+prop.table(tab_confusion, 2)
+```
+
+```{r}
+df_iteraciones <- as.data.frame(iteraciones)
+ggplot(df_iteraciones, aes(x=epoch, y=value, colour=data, group=data)) + 
+  geom_line() + geom_point() + facet_wrap(~metric, ncol=1, scales = 'free')
+```
+
