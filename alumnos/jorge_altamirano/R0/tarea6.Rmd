@@ -26,9 +26,7 @@ dat.p <- data.frame(x,p)
 
 qplot(x,p, geom='line', colour=I('red')) +
   geom_jitter(data = datos, aes(x=x.2,y=g.2), col ='black', 
-    position = position_jitter(height=0.05), alpha=0.4) #+
-
-
+    position = position_jitter(height=0.05), alpha=0.4) 
 ```
 
 ```{r}
@@ -51,6 +49,6 @@ qplot(x,p, geom='line', colour=I('black')) +
 # }
 # dat <- expand.grid(x.2 = x, g.2 = p)
 # dat <- dat %>% mutate(p = p(x.2, p))
-ggplot(datos, aes(x=x, y=p)) #+ geom_tile(aes(fill=p))
+ggplot(datos, aes(x=x.2, y=g.2)) + geom_tile(aes(fill=p))
 ```
 
