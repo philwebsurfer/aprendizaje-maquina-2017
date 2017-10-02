@@ -1,0 +1,8 @@
+---
+title: "Tarea 7 - 2017/10/01"
+output: html_notebook
+---
+
+## Tarea 7 - 2017/10/01
+_175904 - Jorge III Altamirano Astorga_
+
