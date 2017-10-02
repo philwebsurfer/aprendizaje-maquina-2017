@@ -176,9 +176,72 @@ $(document).ready(function () {
 <h2>Tarea 7 - 2017/10/01</h2>
 <p><em>175904 - Jorge III Altamirano Astorga</em></p>
 <!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShnZ3Bsb3QyKVxubGlicmFyeShrZXJhcylcbmxpYnJhcnkobm5ldClcbnNldC5zZWVkKDE3NTkwNClcbmBgYCJ9 -->
+<pre class="r"><code>library(ggplot2)
+library(keras)
+library(nnet)
+set.seed(175904)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc2V0LnNlZWQoMTc1OTA0KVxuaCA8LSBmdW5jdGlvbih4KXtcbiAgICBleHAoeCkvKDErZXhwKHgpKVxufVxuZmVlZF9md2QgPC0gZnVuY3Rpb24oYmV0YSwgeCl7XG4gIGFfMSA8LSBoKGJldGFbMV0gKyBiZXRhWzJdKngpICMgY2FsY3VsYSB2YXJpYWJsZSAxIGRlIGNhcGEgb2N1bHRhXG4gIGFfMiA8LSBoKGJldGFbM10gKyBiZXRhWzRdKngpICMgY2FsY3VsYSB2YXJpYWJsZSAyIGRlIGNhcGEgb2N1bHRhXG4gIHAgPC0gaChiZXRhWzVdK2JldGFbNl0qYV8xICsgYmV0YVs3XSphXzIpICMgY2FsY3VsYSBjYXBhIGRlIHNhbGlkYVxuICBwXG59XG5kZXZpYW56YV9mdW4gPC0gZnVuY3Rpb24oeCwgeSl7XG4gICAgIyBlc3RhIGZ1bmNpw7NuIGVzIHVuYSBmw6FicmljYSBkZSBmdW5jaW9uZXNcbiAgIGRldmlhbnphIDwtIGZ1bmN0aW9uKGJldGEpe1xuICAgICAgICAgcCA8LSBmZWVkX2Z3ZChiZXRhLCB4KVxuICAgICAgLSAyICogbWVhbih5KmxvZyhwKSArICgxLXkpKmxvZygxLXApKVxuICAgfVxuICBkZXZpYW56YVxufVxueF8xIDwtIHJ1bmlmKDMwLCAtMiwgMilcbmdfMSA8LSByYmlub20oMzAsIDEsIGgoMiAtIDMgKiB4XzFeMikpXG5kZXYgPC0gZGV2aWFuemFfZnVuKHhfMSwgZ18xKSAjIGNyZWEgZnVuY2nDs24gZGV2XG4jIyBoYWNlciBsb3MgNyB2YWxvcmVzIGJldGE6XG5kZXYoYygwLDAsMCwwLDAsMCwwKSlcbmBgYCJ9 -->
+<pre class="r"><code>set.seed(175904)
+h &lt;- function(x){
+    exp(x)/(1+exp(x))
+}
+feed_fwd &lt;- function(beta, x){
+  a_1 &lt;- h(beta[1] + beta[2]*x) # calcula variable 1 de capa oculta
+  a_2 &lt;- h(beta[3] + beta[4]*x) # calcula variable 2 de capa oculta
+  p &lt;- h(beta[5]+beta[6]*a_1 + beta[7]*a_2) # calcula capa de salida
+  p
+}
+devianza_fun &lt;- function(x, y){
+    # esta función es una fábrica de funciones
+   devianza &lt;- function(beta){
+         p &lt;- feed_fwd(beta, x)
+      - 2 * mean(y*log(p) + (1-y)*log(1-p))
+   }
+  devianza
+}
+x_1 &lt;- runif(30, -2, 2)
+g_1 &lt;- rbinom(30, 1, h(2 - 3 * x_1^2))
+dev &lt;- devianza_fun(x_1, g_1) # crea función dev
+## hacer los 7 valores beta:
+dev(c(0,0,0,0,0,0,0))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDEuMzg2Mjk0XG4ifQ== -->
+<pre><code>[1] 1.386294</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxub3V0cHV0ID0gb3B0aW0ocm5vcm0oNyksIGRldiwgbWV0aG9kPSdCRkdTJykgIyBpbmljaWFsaXphciBhbCBhemFyIHB1bnRvIGluaWNpYWxcbm91dHB1dFxuYGBgIn0= -->
+<pre class="r"><code>output = optim(rnorm(7), dev, method='BFGS') # inicializar al azar punto inicial
+output</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiJHBhclxuWzFdIC0xOC4zNDIwNzQgIDE2LjUwNjg3MSAgIDkuMTkwNDU3ICAgOS40NzQ1MjggIC02LjcyNTcxNyAtMTQuMDYwMDM5ICAgOS4zNTkzNjNcblxuJHZhbHVlXG5bMV0gMC40MzU1MzE3XG5cbiRjb3VudHNcbmZ1bmN0aW9uIGdyYWRpZW50IFxuICAgICAxMDMgICAgICAxMDAgXG5cbiRjb252ZXJnZW5jZVxuWzFdIDFcblxuJG1lc3NhZ2Vcbk5VTExcbiJ9 -->
+<pre><code>$par
+[1] -18.342074  16.506871   9.190457   9.474528  -6.725717 -14.060039   9.359363
+
+$value
+[1] 0.4355317
+
+$counts
+function gradient 
+     103      100 
+
+$convergence
+[1] 1
+
+$message
+NULL</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiVGFyZWEgNyAtIDIwMTcvMTAvMDEiCm91dHB1dDogaHRtbF9ub3RlYm9vawotLS0KCiMjIFRhcmVhIDcgLSAyMDE3LzEwLzAxCl8xNzU5MDQgLSBKb3JnZSBJSUkgQWx0YW1pcmFubyBBc3RvcmdhXwoK</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiVGFyZWEgNyAtIDIwMTcvMTAvMDEiCm91dHB1dDogaHRtbF9ub3RlYm9vawotLS0KCiMjIFRhcmVhIDcgLSAyMDE3LzEwLzAxCl8xNzU5MDQgLSBKb3JnZSBJSUkgQWx0YW1pcmFubyBBc3RvcmdhXwoKYGBge3IgbGlicmVyw61hcywgbWVzc2FnZT1GQUxTRSwgd2FybmluZz1GQUxTRSwgZXJyb3I9VFJVRX0KbGlicmFyeShnZ3Bsb3QyKQpsaWJyYXJ5KGtlcmFzKQpsaWJyYXJ5KG5uZXQpCmBgYAoKYGBge3J9CnNldC5zZWVkKDE3NTkwNCkKaCA8LSBmdW5jdGlvbih4KXsKICAgIGV4cCh4KS8oMStleHAoeCkpCn0KCmZlZWRfZndkIDwtIGZ1bmN0aW9uKGJldGEsIHgpewogIGFfMSA8LSBoKGJldGFbMV0gKyBiZXRhWzJdKngpICMgY2FsY3VsYSB2YXJpYWJsZSAxIGRlIGNhcGEgb2N1bHRhCiAgYV8yIDwtIGgoYmV0YVszXSArIGJldGFbNF0qeCkgIyBjYWxjdWxhIHZhcmlhYmxlIDIgZGUgY2FwYSBvY3VsdGEKICBwIDwtIGgoYmV0YVs1XStiZXRhWzZdKmFfMSArIGJldGFbN10qYV8yKSAjIGNhbGN1bGEgY2FwYSBkZSBzYWxpZGEKICBwCn0KCmRldmlhbnphX2Z1biA8LSBmdW5jdGlvbih4LCB5KXsKICAgICMgZXN0YSBmdW5jacOzbiBlcyB1bmEgZsOhYnJpY2EgZGUgZnVuY2lvbmVzCiAgIGRldmlhbnphIDwtIGZ1bmN0aW9uKGJldGEpewogICAgICAgICBwIDwtIGZlZWRfZndkKGJldGEsIHgpCiAgICAgIC0gMiAqIG1lYW4oeSpsb2cocCkgKyAoMS15KSpsb2coMS1wKSkKICAgfQogIGRldmlhbnphCn0KCnhfMSA8LSBydW5pZigzMCwgLTIsIDIpCmdfMSA8LSByYmlub20oMzAsIDEsIGgoMiAtIDMgKiB4XzFeMikpCmRldiA8LSBkZXZpYW56YV9mdW4oeF8xLCBnXzEpICMgY3JlYSBmdW5jacOzbiBkZXYKIyMgaGFjZXIgbG9zIDcgdmFsb3JlcyBiZXRhOgpkZXYoYygwLDAsMCwwLDAsMCwwKSkKb3V0cHV0ID0gb3B0aW0ocm5vcm0oNyksIGRldiwgbWV0aG9kPSdCRkdTJykgIyBpbmljaWFsaXphciBhbCBhemFyIHB1bnRvIGluaWNpYWwKb3V0cHV0CmBgYAoK</div>
 
 
 

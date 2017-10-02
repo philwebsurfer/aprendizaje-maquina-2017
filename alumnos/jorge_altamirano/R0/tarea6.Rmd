@@ -29,6 +29,7 @@ qplot(x,p, geom='line', colour=I('red')) +
     position = position_jitter(height=0.05), alpha=0.4) 
 ```
 
+
 ```{r}
 set.seed(175904)
 # print(data.frame(x.2 = x.2, x.3 = x.3, g.2 = g.2))

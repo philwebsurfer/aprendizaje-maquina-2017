@@ -6,3 +6,40 @@ output: html_notebook
 ## Tarea 7 - 2017/10/01
 _175904 - Jorge III Altamirano Astorga_
 
+```{r librerías, message=FALSE, warning=FALSE, error=TRUE}
+library(ggplot2)
+library(keras)
+library(nnet)
+```
+
+```{r}
+set.seed(175904)
+h <- function(x){
+    exp(x)/(1+exp(x))
+}
+
+feed_fwd <- function(beta, x){
+  a_1 <- h(beta[1] + beta[2]*x) # calcula variable 1 de capa oculta
+  a_2 <- h(beta[3] + beta[4]*x) # calcula variable 2 de capa oculta
+  p <- h(beta[5]+beta[6]*a_1 + beta[7]*a_2) # calcula capa de salida
+  p
+}
+
+devianza_fun <- function(x, y){
+    # esta función es una fábrica de funciones
+   devianza <- function(beta){
+         p <- feed_fwd(beta, x)
+      - 2 * mean(y*log(p) + (1-y)*log(1-p))
+   }
+  devianza
+}
+
+x_1 <- runif(30, -2, 2)
+g_1 <- rbinom(30, 1, h(2 - 3 * x_1^2))
+dev <- devianza_fun(x_1, g_1) # crea función dev
+## hacer los 7 valores beta:
+dev(c(0,0,0,0,0,0,0))
+output = optim(rnorm(7), dev, method='BFGS') # inicializar al azar punto inicial
+output
+```
+
