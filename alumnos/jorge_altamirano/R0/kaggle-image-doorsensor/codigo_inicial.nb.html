@@ -305,7 +305,7 @@ df_train[2,38001]
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY29udmVydGlyX2ltYWdlbiA8LSBmdW5jdGlvbihyZW5nbG9uLCBkYXQpIHtcbiMgVXNhZ2U6IGNvbnZlcnRpcl9pbWFnZW4oMiwgZGZfdHJhaW4pXG4gIG1hdCA8LSAodChtYXRyaXgoYXMubnVtZXJpYyhkYXRbcmVuZ2xvbixjKDE6MzgwMDApXSksXG4gICAgICAgICAgICAgICAgICAgbnJvdz0xOTAsIG5jb2w9MjAwLCBieXJvdz1UKSlbLDE5MDoxXSlcbiAgaW1hZ2VuIDwtIGFzLmNpbWcobWF0KVxuICBmaWxlbmFtZSA8LSBwYXN0ZTAoXCJ0bXAvdG1wLmltZy5wbmdcIilcbiAgc2F2ZS5pbWFnZShpbWFnZW4sIGZpbGVuYW1lKVxuICBpbWFnZW4gPC0gaW1hZ2VfcmVhZChmaWxlbmFtZSlcbiAgZmlsZS5yZW1vdmUoZmlsZW5hbWUpXG4gIGltYWdlbiA9IGltYWdlX2ZsaXAoaW1hZ2VuKVxuICAjIGltYWdlbiA9IGltYWdlX2Nyb3AoaW1hZ2VuLCBcIjE2MHg4MCszOSs2N1wiKVxuICBmaWxlbmFtZSA8LSBwYXN0ZTAoXCJ0bXAvaW1nXCIscmVuZ2xvbixcIi1cIixkYXRbcmVuZ2xvbixjKDM4MDAxKV0sXCIucG5nXCIpXG4gIGltYWdlX3dyaXRlKGltYWdlID0gaW1hZ2VuLCBwYXRoID0gZmlsZW5hbWUpXG59XG5cbiMgZm9yKGkgaW4gNSkge1xuZm9yKGkgaW4gMTpucm93KGRmX3RyYWluKSkge1xuICBjb252ZXJ0aXJfaW1hZ2VuKGksIGRmX3RyYWluKVxufVxucm0oaSlcblxucGxvdChpbWFnZW4sIGF4ZXMgPSBGLCBpbnRlcnBvbGF0ZSA9IEYpXG4jIGltYWdlKG1hdCwgYXhlcyA9IEYsIGNvbD1ncmF5KDA6MjU1LzI1NSkpXG5ybShpbWFnZW4pXG5gYGAifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY29udmVydGlyX2ltYWdlbiA8LSBmdW5jdGlvbihyZW5nbG9uLCBkYXQpIHtcbiMgVXNhZ2U6IGNvbnZlcnRpcl9pbWFnZW4oMiwgZGZfdHJhaW4pXG4gIG1hdCA8LSAodChtYXRyaXgoYXMubnVtZXJpYyhkYXRbcmVuZ2xvbixjKDE6MzgwMDApXSksXG4gICAgICAgICAgICAgICAgICAgbnJvdz0xOTAsIG5jb2w9MjAwLCBieXJvdz1UKSlbLDE5MDoxXSlcbiAgaW1hZ2VuIDwtIGFzLmNpbWcobWF0KVxuICBmaWxlbmFtZSA8LSBwYXN0ZTAoXCJ0bXAvdG1wLmltZy5wbmdcIilcbiAgc2F2ZS5pbWFnZShpbWFnZW4sIGZpbGVuYW1lKVxuICBpbWFnZW4gPC0gaW1hZ2VfcmVhZChmaWxlbmFtZSlcbiAgZmlsZS5yZW1vdmUoZmlsZW5hbWUpXG4gIGltYWdlbiA9IGltYWdlX2ZsaXAoaW1hZ2VuKVxuICAjIGltYWdlbiA9IGltYWdlX2Nyb3AoaW1hZ2VuLCBcIjE2MHg4MCszOSs2N1wiKVxuICBmaWxlbmFtZSA8LSBwYXN0ZTAoXCJ0bXAvaW1nXCIscmVuZ2xvbixcIi1cIixkYXRbcmVuZ2xvbixjKDM4MDAxKV0sXCIucG5nXCIpXG4gIGltYWdlX3dyaXRlKGltYWdlID0gaW1hZ2VuLCBwYXRoID0gZmlsZW5hbWUpXG59XG4jIGZvcihpIGluIDUpIHtcbmZvcihpIGluIDE6bnJvdyhkZl90cmFpbikpIHtcbiAgY29udmVydGlyX2ltYWdlbihpLCBkZl90cmFpbilcbn1cbnJtKGkpXG5wbG90KGltYWdlbiwgYXhlcyA9IEYsIGludGVycG9sYXRlID0gRilcbmBgYCJ9 -->
 <pre class="r"><code>convertir_imagen &lt;- function(renglon, dat) {
 # Usage: convertir_imagen(2, df_train)
   mat &lt;- (t(matrix(as.numeric(dat[renglon,c(1:38000)]),
@@ -320,17 +320,17 @@ df_train[2,38001]
   filename &lt;- paste0(&quot;tmp/img&quot;,renglon,&quot;-&quot;,dat[renglon,c(38001)],&quot;.png&quot;)
   image_write(image = imagen, path = filename)
 }
-
 # for(i in 5) {
 for(i in 1:nrow(df_train)) {
   convertir_imagen(i, df_train)
 }
 rm(i)
-
-plot(imagen, axes = F, interpolate = F)
-# image(mat, axes = F, col=gray(0:255/255))
-rm(imagen)</code></pre>
+plot(imagen, axes = F, interpolate = F)</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gcGxvdChpbWFnZW4sIGF4ZXMgPSBGLCBpbnRlcnBvbGF0ZSA9IEYpIDogXG4gIG9iamVjdCAnaW1hZ2VuJyBub3QgZm91bmRcbiJ9 -->
+<pre><code>Error in plot(imagen, axes = F, interpolate = F) : 
+  object 'imagen' not found</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
