@@ -3,37 +3,135 @@ title: "Codigo Inicial"
 output: html_notebook
 ---
 
-### Código Inicial
+## Código Inicial
+_175904 - Jorge III Altamirano Astorga (phil_websurfer@yahoo.com)_
 
-```{r}
+```{r libraries, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
+library(magick)
+library(imager)
+library(purrr)
+```
 
-df_t <- read_csv('train.csv')
-test <- read_csv('test.csv')
-table(df_t$estado)
+### Preparación de los datos
+
+Con el fin de acelerar las lecturas e ingesta en R se precargan las columnas. El método reproducible lo hice en un script bash `col_types.sh`.
+
+```{r leer tabla entrenamiento}
+col_types <- read_file("col_types.out")
+df_train <- read_csv('train.csv', col_types = col_types, progress=F)
+
+# Cambiar la última columna donde el estado se convierte en ID
+col_types <- sub(pattern = "cT", replacement = "Ti", x = col_types)
+df_test <- read_csv('test.csv', col_types = col_types, progress = F)
+rm(col_types)
+```
+
+```{r}
+table(df_train$estado)
+```
+
+## EDA
+
+### Minuto del día, en vez de tipo "DateTime"
+
+```{r rango de datos}
+summary(df_train$hora)
+summary(df_test$hora)
+```
 
 
+Considero que para nuestro análisis va a servir mejor si utilizamos los minutos del día dado que no hay estacionalidad al ser todas las muestras entre julio y agosto, aunque todo está en UTC.
 
+```{r minutes conversion}
+df_train$minutes <- (df_train[,38002]%>% 
+  mutate(minutes = 60*as.integer(format(hora, format = '%H')) + 
+           as.integer(format(hora, format = '%M'))))[,2]
+df_train$minutes <- df_train$minutes$minutes
+summary(df_train[,c(1,38000,38003)])
+df_test$minutes <- (df_test[,c(38001)]%>% 
+  mutate(minutes = 60*as.integer(format(hora, format = '%H')) + 
+           as.integer(format(hora, format = '%M'))))[,2]
+df_test$minutes <- df_test$minutes$minutes
+summary(df_test[,c(1,38000,38003)])
+hist(df_train$minutes)
+hist(df_test$minutes)
+# mutate(minutes = 60*as.integer(format(df_test$hora, format = "%H")) +
+#   as.integer(format(df_test$hora, format = "%M")))
+```
+
+```{r}
 mostrar_imagen <- function(renglon, dat){
-  v <- as.numeric(dat %>% dplyr::select(contains('X'))%>% .[renglon,])
+  # head -n 1 train.csv | tr ',' '\n' | awk '{printf("%010d %s\n", NR, $0)}' | less
+  v <- as.numeric(dat[renglon,c(1:38000)])
   mat <- (t(matrix(v, nrow=190, ncol=200, byrow=T))[,190:1])
   image(mat, axes = F, col=gray(0:255/255))
 }
 
-mostrar_imagen(1, df_t)
+
+imagen <- mostrar_imagen(2, df_train)
+df_train[2,38001]
+# magick::image_write(imagen, "img1-1.jpg")
 ```
 
 ```{r}
-mostrar_imagen(100, df_t)
+convertir_imagen <- function(renglon, dat) {
+# Usage: convertir_imagen(2, df_train)
+  mat <- (t(matrix(as.numeric(dat[renglon,c(1:38000)]),
+                   nrow=190, ncol=200, byrow=T))[,190:1])
+  imagen <- as.cimg(mat)
+  filename <- paste0("tmp/tmp.img.png")
+  save.image(imagen, filename)
+  imagen <- image_read(filename)
+  file.remove(filename)
+  imagen = image_flip(imagen)
+  # imagen = image_crop(imagen, "160x80+39+67")
+  filename <- paste0("tmp/img",renglon,"-",dat[renglon,c(38001)],".png")
+  image_write(image = imagen, path = filename)
+}
+
+# for(i in 5) {
+for(i in 1:nrow(df_train)) {
+  convertir_imagen(i, df_train)
+}
+rm(i)
+
+plot(imagen, axes = F, interpolate = F)
+# image(mat, axes = F, col=gray(0:255/255))
+rm(imagen)
+```
+
+### Sacar las columnas de las secciones relevantes
+
+Crée una función sencilla para extraer secciones que yo considero relevantes para el aprendizaje.
+
+```{r secciones de la imagen}
+submatrix <- function(x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
+  a = NULL
+  for(i in 1:y) {
+    for(j in 1:x) {
+      a = c(a,(xoffset+j)+(nrow*(i+yoffset-1)))
+    }
+  }
+  a
+}
+submatrix(2,5,2,2)
+submatrix(3,2,3,1,6)
+length(submatrix(35,45,29,22,160))
+```
+
+
+
+```{r}
+mostrar_imagen(100, df_train)
 ```
 
 ```{r}
-mostrar_imagen(190, df_t)
-
+mostrar_imagen(190, df_train)
 ```
 
 ```{r}
-mostrar_imagen(130, df_t)
+mostrar_imagen(130, df_train)
 ```
 
