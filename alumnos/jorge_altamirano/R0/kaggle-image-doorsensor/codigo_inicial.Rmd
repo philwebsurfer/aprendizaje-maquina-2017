@@ -19,13 +19,19 @@ library(purrr)
 Con el fin de acelerar las lecturas e ingesta en R se precargan las columnas. El método reproducible lo hice en un script bash `col_types.sh`.
 
 ```{r leer tabla entrenamiento}
-col_types <- read_file("col_types.out")
-df_train <- read_csv('train.csv', col_types = col_types, progress=F)
+### Toma mucho tiempo por lo que se opta por guardar los objetos
+  # col_types <- read_file("col_types.out")
+  # df_train <- read_csv('train.csv', col_types = col_types, progress=F)
+  # 
+  # # Cambiar la última columna donde el estado se convierte en ID
+  # col_types <- sub(pattern = "cT", replacement = "Ti", x = col_types)
+  # df_test <- read_csv('test.csv', col_types = col_types, progress = F)
+  # rm(col_types)
+  # save(df_train, file = "df_train.Robj")
+  # save(df_test, file = "df_test.Robj")
 
-# Cambiar la última columna donde el estado se convierte en ID
-col_types <- sub(pattern = "cT", replacement = "Ti", x = col_types)
-df_test <- read_csv('test.csv', col_types = col_types, progress = F)
-rm(col_types)
+load(file = "df_train.Robj")
+load(file = "df_test.Robj")
 ```
 
 ```{r}
@@ -62,44 +68,40 @@ hist(df_test$minutes)
 ```
 
 ```{r}
-mostrar_imagen <- function(renglon, dat){
+mostrar_imagen <- function(renglon, dat, nrow = 190, ncol = 200){
   # head -n 1 train.csv | tr ',' '\n' | awk '{printf("%010d %s\n", NR, $0)}' | less
-  v <- as.numeric(dat[renglon,c(1:38000)])
-  mat <- (t(matrix(v, nrow=190, ncol=200, byrow=T))[,190:1])
+  v <- as.numeric(dat[renglon,c(1:(nrow*ncol))])
+  mat <- (t(matrix(v, nrow=nrow, ncol=ncol, byrow=T))[,nrow:1])
   image(mat, axes = F, col=gray(0:255/255))
 }
 
 
-imagen <- mostrar_imagen(2, df_train)
+imagen <- mostrar_imagen(2, df_train, 190, 200)
 df_train[2,38001]
-# magick::image_write(imagen, "img1-1.jpg")
 ```
 
-```{r}
-convertir_imagen <- function(renglon, dat) {
+#### Conversión de imágenes
+```{r Conversión de imágenes a archivos}
+convertir_imagen <- function(renglon, dat, nrow = 200, ncol = 190) {
 # Usage: convertir_imagen(2, df_train)
-  mat <- (t(matrix(as.numeric(dat[renglon,c(1:38000)]),
-                   nrow=190, ncol=200, byrow=T))[,190:1])
+  mat <- (t(matrix(as.numeric(dat[renglon,c(1:(nrow*ncol))]),
+                   nrow=ncol, ncol=nrow, byrow=T))[,1:ncol])
   imagen <- as.cimg(mat)
-  filename <- paste0("tmp/tmp.img.png")
+  if(names(dat[1,38001]) == "estado") {
+    filename <- paste0("tmp/",substitute(dat),"-",renglon,"-",dat[renglon,38001],".jpg")
+  } else{
+    filename <- paste0("tmp/",substitute(dat),"-",renglon,".jpg")
+  }
   save.image(imagen, filename)
-  imagen <- image_read(filename)
-  file.remove(filename)
-  imagen = image_flip(imagen)
-  # imagen = image_crop(imagen, "160x80+39+67")
-  filename <- paste0("tmp/img",renglon,"-",dat[renglon,c(38001)],".png")
-  image_write(image = imagen, path = filename)
 }
 
-# for(i in 5) {
 for(i in 1:nrow(df_train)) {
   convertir_imagen(i, df_train)
 }
+for(i in 1:nrow(df_test)) {
+  convertir_imagen(i, df_test)
+}
 rm(i)
-
-plot(imagen, axes = F, interpolate = F)
-# image(mat, axes = F, col=gray(0:255/255))
-rm(imagen)
 ```
 
 ### Sacar las columnas de las secciones relevantes
@@ -118,7 +120,36 @@ submatrix <- function(x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
 }
 submatrix(2,5,2,2)
 submatrix(3,2,3,1,6)
-length(submatrix(35,45,29,22,160))
+
+convertir_imagen2 <- function(renglon, dat, nrow = 200, ncol = 190) {
+  mat <- (t(matrix(as.numeric(dat[renglon,c(1:length(dat[renglon,]))]),
+                   nrow=ncol, ncol=nrow, byrow=T))[,1:ncol])
+  imagen <- as.cimg(mat)
+  filename <- paste0("tmp/test-",renglon,".jpg")
+  save.image(imagen, filename)
+}
+
+a = submatrix(132,75,45,87,200)
+a = submatrix(8,8,45,87,200)
+# a = submatrix(200, 190, 0, 0, 200)
+convertir_imagen2(1, df_train[51,a], 132, 75) ; knitr::include_graphics("tmp/test-1.jpg")
+
+pixels_average <- function(dat, renglon, size = 2, x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
+  # subimage <- submatrix(x, y, xoffset, yoffset, nrow)
+  # dat <- dat[renglon, subimage]
+  
+  out <- NULL
+  for(i in 1:(floor(x/size)-0)) {
+    for(j in 1:(floor(y/size)-0)){
+      out <- c(out,c(dat[submatrix(size, size, size*(j-1), size*(i-1), nrow)], ","))
+    }
+  }
+  # subm <- submatrix(size, size, )
+  # a = c(round(sum(dat)/size^2))
+  out
+}
+b <- pixels_average(a, 51, 2, 4, 4, 0, 0, 8); b; a
+# b = pixels_average(2, df_train[51,submatrix(2,2,95,120,200)])
 ```
 
 
