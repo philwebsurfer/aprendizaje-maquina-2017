@@ -1,9 +1,9 @@
 ---
-title: "Codigo Inicial"
+title: "Image-Based Door Sensor"
 output: html_notebook
 ---
 
-## Código Inicial
+## Image-Based Door Sensor
 _175904 - Jorge III Altamirano Astorga (phil_websurfer@yahoo.com)_
 
 ```{r libraries, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE}
@@ -56,7 +56,7 @@ Considero que para nuestro análisis va a servir mejor si utilizamos los minutos
 df_train$minutes <- (df_train[,38002]%>% 
   mutate(minutes = 60*as.integer(format(hora, format = '%H')) + 
            as.integer(format(hora, format = '%M'))))[,2]
-df_train$minutes <- df_train$minutes$minutes
+df_train$minutes <- as.numeric(df_train$minutes$minutes)
 summary(df_train[,c(1,38000,38003)])
 df_test$minutes <- (df_test[,c(38001)]%>% 
   mutate(minutes = 60*as.integer(format(hora, format = '%H')) + 
@@ -114,6 +114,7 @@ Encontré los siguientes hallazgos durante la exploración:
 * La cámara al parecer se mueve ligeramente, por lo que el mismo pixel no representa la misma posición siempre
 * No está sujeta a grandes cambios de estaciones los datos de aprendizaje, por lo que la hora (o minutos) pudieran tomarse como variable importante dentro del modelo, para compensar la luz y oscuridad
 * Ciertas personas y objetos (como autos) pueden afectar al modelo, por lo que es importante tomar diferentes secciones de la imagen
+* Existen algunas imágenes contienen ruido, por lo que el promedio es útil
 * Existe un foco que pudiera afectar la interpretación del estado de la puerta, pues es _relativamente independiente_ al estado de la puerta. Pues se prende antes de abrir la puerta, durante la apertura, durante el cierre y después del cierre de la puerta; además no está prendida durante el día o no se aprecia.
 
 ### Sacar las columnas de las secciones relevantes
@@ -197,6 +198,7 @@ load(file = "df_train2.Robj")
   #   df_train2 <- rbind(df_train2, c(b1,b2,b3,df_train[i,c(38001,38003)]))
   # }
   # df_train2 <- data.frame(df_train2)
+  df_train2$minutes <- as.numeric(df_train2$minutes)
   df_train2$estado_cerrada <- as.factor(ifelse(df_train2$estado == "cerrada", T, F))
   # save(df_train2, file = "df_train2.Robj")
   # date()
@@ -222,7 +224,7 @@ plot(mod_ridge, xvar = "lambda", ylim = c(-1e-04, 1e-04))
 ```
 
 ```{r}
-mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix,
+mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix, # [,c(1:855,857)]
   y = df_train2$estado_cerrada,
   alpha = 0, #ridge
   nfolds = 50,
@@ -231,7 +233,7 @@ mod_ridge_cv$lambda.1se
 plot(mod_ridge_cv)
 ```
 ```{r cropped ridge}
-mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855)] %>% data.matrix,
+mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix,
   y = df_train2$estado_cerrada,
   alpha = 0, #ridge
   nfolds = 50, lambda = exp(seq(-3,0,1)),
@@ -303,7 +305,7 @@ load(file = "df_test2.Robj")
 
 ```{r Ridge predicts test}
 preds_ridge_se_test <- predict(mod_ridge_cv, lambda=mod_ridge_cv$lambda.1se, 
-         newx = df_test2[,1:855] %>% data.matrix,
+         newx = df_test2[,c(1:855,857)] %>% data.matrix,
         type = 'response')
 qplot(preds_ridge_se_test[1:400,], preds_ridge_se ) + geom_abline(intercept=0, slope=1, col='red')
 table(preds_ridge_se_test > 0.5)
