@@ -9,9 +9,11 @@ _175904 - Jorge III Altamirano Astorga (phil_websurfer@yahoo.com)_
 ```{r libraries, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
-library(magick)
+library(glmnet)
 library(imager)
 library(purrr)
+library(ggplot2)
+library(ROCR)
 ```
 
 ### Preparación de los datos
@@ -76,7 +78,7 @@ mostrar_imagen <- function(renglon, dat, nrow = 190, ncol = 200){
 }
 
 
-imagen <- mostrar_imagen(2, df_train, 190, 200)
+mostrar_imagen(2, df_train, 190, 200)
 df_train[2,38001]
 ```
 
@@ -95,19 +97,32 @@ convertir_imagen <- function(renglon, dat, nrow = 200, ncol = 190) {
   save.image(imagen, filename)
 }
 
-for(i in 1:nrow(df_train)) {
-  convertir_imagen(i, df_train)
-}
-for(i in 1:nrow(df_test)) {
-  convertir_imagen(i, df_test)
-}
-rm(i)
+# # Comentado para evitar correr las conversiones lentas
+# for(i in 1:nrow(df_train)) {
+#   convertir_imagen(i, df_train)
+# }
+# for(i in 1:nrow(df_test)) {
+#   convertir_imagen(i, df_test)
+# }
+# rm(i)
 ```
+
+### Hallazgos importantes
+
+Encontré los siguientes hallazgos durante la exploración:
+
+* La cámara al parecer se mueve ligeramente, por lo que el mismo pixel no representa la misma posición siempre
+* No está sujeta a grandes cambios de estaciones los datos de aprendizaje, por lo que la hora (o minutos) pudieran tomarse como variable importante dentro del modelo, para compensar la luz y oscuridad
+* Ciertas personas y objetos (como autos) pueden afectar al modelo, por lo que es importante tomar diferentes secciones de la imagen
+* Existe un foco que pudiera afectar la interpretación del estado de la puerta, pues es _relativamente independiente_ al estado de la puerta. Pues se prende antes de abrir la puerta, durante la apertura, durante el cierre y después del cierre de la puerta; además no está prendida durante el día o no se aprecia.
 
 ### Sacar las columnas de las secciones relevantes
 
-Crée una función sencilla para extraer secciones que yo considero relevantes para el aprendizaje.
+Crée una función sencilla para extraer secciones que yo considero relevantes para el aprendizaje y promediarlos.
 
+![](img-subsection-51.jpg)
+
+Función para extraer las columnas de la subsección
 ```{r secciones de la imagen}
 submatrix <- function(x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
   a = NULL
@@ -121,48 +136,133 @@ submatrix <- function(x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
 submatrix(2,5,2,2)
 submatrix(3,2,3,1,6)
 
-convertir_imagen2 <- function(renglon, dat, nrow = 200, ncol = 190) {
-  mat <- (t(matrix(as.numeric(dat[renglon,c(1:length(dat[renglon,]))]),
+convertir_imagen2 <- function(dat, nrow = 200, ncol = 190, seq = 1) {
+  mat <- (t(matrix(as.numeric(dat[c(1:length(dat))]),
                    nrow=ncol, ncol=nrow, byrow=T))[,1:ncol])
   imagen <- as.cimg(mat)
-  filename <- paste0("tmp/test-",renglon,".jpg")
+  filename <- paste0("tmp/test-subpic-",seq,".jpg")
   save.image(imagen, filename)
 }
+a_1 = c(30, 30, 50, 140, 200)
+a_2 = c(30, 50, 88, 110, 200)
+a_3 = c(35, 30, 137, 88, 200)
+a1 = submatrix(a_1[1], a_1[2], a_1[3], a_1[4], a_1[5])
+a2 = submatrix(a_2[1], a_2[2], a_2[3], a_2[4], a_2[5])
+a3 = submatrix(a_3[1], a_3[2], a_3[3], a_3[4], a_3[5])
+# a = submatrix(132,75,45,87,200)
+# convertir_imagen2(dat=df_train[51,a],132,75,1); knitr::include_graphics("tmp/test-subpic-1.jpg")
+convertir_imagen2(dat=df_train[51,a1],a_1[1],a_1[2],"a1"); knitr::include_graphics("tmp/test-subpic-a1.jpg")
+convertir_imagen2(dat=df_train[51,a2],a_2[1],a_2[2],"a2"); knitr::include_graphics("tmp/test-subpic-a2.jpg")
+convertir_imagen2(dat=df_train[51,a3],a_3[1],a_3[2],"a3"); knitr::include_graphics("tmp/test-subpic-a3.jpg")
+```
 
-a = submatrix(132,75,45,87,200)
-a = submatrix(8,8,45,87,200)
-# a = submatrix(200, 190, 0, 0, 200)
-convertir_imagen2(1, df_train[51,a], 132, 75) ; knitr::include_graphics("tmp/test-1.jpg")
+#### Reducir el número de variables
 
-pixels_average <- function(dat, renglon, size = 2, x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
-  # subimage <- submatrix(x, y, xoffset, yoffset, nrow)
-  # dat <- dat[renglon, subimage]
-  
+Con el fin de reducir las variables se pueden poner como promedios (filtro tipo _pixelize_ de GIMP).
+
+```{r funcion de promedios}
+pixels_average <- function(dat, renglon, size = 2, 
+     x = 0, y = 0, xoffset = 0, yoffset = 0, nrow = x) {
   out <- NULL
   for(i in 1:(floor(x/size)-0)) {
     for(j in 1:(floor(y/size)-0)){
-      out <- c(out,c(dat[submatrix(size, size, size*(j-1), size*(i-1), nrow)], ","))
+      out <- c(out,
+         round(sum(dat[renglon,
+            submatrix(size, size, size*(j-1)+xoffset, size*(i-1)+yoffset, 
+                   nrow)
+         ])/(size^2)))
     }
   }
-  # subm <- submatrix(size, size, )
-  # a = c(round(sum(dat)/size^2))
   out
 }
-b <- pixels_average(a, 51, 2, 4, 4, 0, 0, 8); b; a
+mostrar_imagen3 <- function(v, nrow = 190, ncol = 200){
+  nrow = floor(nrow); ncol = floor(ncol)
+  mat <- (t(matrix(v, nrow=nrow, ncol=ncol, byrow=T))[,nrow:1])
+  image(mat, axes = F, col=gray(0:255/255))
+}
+# mostrar_imagen3(b1, a_1[1]/2, a_1[2]/2)
+# mostrar_imagen3(b2, a_2[1]/2, a_2[2]/2)
+# mostrar_imagen3(b3, a_3[1]/2, a_3[2]/2)
+load(file = "df_train2.Robj")
+# date()
+  ## Para evitar retrasos llamamos _load_
+  # df_train2 <- NULL
+  # for(i in 1:nrow(df_train)) { #nrow(df_train)
+  #   b1 <- pixels_average(dat = df_train, renglon = i, size = 2,
+  #           a_1[1], a_1[2], a_1[3], a_1[4], a_1[5])
+  #   b2 <- pixels_average(dat = df_train, renglon = i, size = 2,
+  #           a_2[1], a_2[2], a_2[3], a_2[4], a_2[5])
+  #   b3 <- pixels_average(dat = df_train, renglon = i, size = 2,
+  #           a_3[1], a_3[2], a_3[3], a_3[4], a_3[5])
+  #   df_train2 <- rbind(df_train2, c(b1,b2,b3,df_train[i,c(38001,38003)]))
+  # }
+  # df_train2 <- data.frame(df_train2)
+  # save(df_train2, file = "df_train2.Robj")
+  # df_train2$estado <- as.factor(ifelse(df_train2$estado == "abierta", 1, 0))
+  # date()
+# a = submatrix(8,8, 0, 0, 8)
 # b = pixels_average(2, df_train[51,submatrix(2,2,95,120,200)])
 ```
 
+## Creación del modelo 
 
+```{r mod_ridge creation}
+mod_ridge <- glmnet(x = df_train2[,c(1:855,857)] %>% as.matrix, # [,c(1:855,857)]
+  y = df_train2$estado,
+  alpha = 0, #ridge
+  family='binomial', intercept = F, nlambda=50) #normalmente ponemos intercept = T
+dim(coef(mod_ridge))
+```
 
-```{r}
-mostrar_imagen(100, df_train)
+### $\Lambda$ Lambda Plot 
+
+```{r lambda plot}
+plot(mod_ridge, xvar = "lambda")
+plot(mod_ridge, xvar = "lambda", ylim = c(-1e-04, 1e-04))
 ```
 
 ```{r}
-mostrar_imagen(190, df_train)
+mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix,
+  y = df_train2$estado,
+  alpha = 0, #ridge
+  nfolds = 50,
+  family='binomial', intercept = T, nlambda=50) #normalmente ponemos intercept = T
+mod_ridge_cv$lambda.1se
+plot(mod_ridge_cv)
+```
+```{r}
+mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix,
+  y = df_train2$estado,
+  alpha = 0, #ridge
+  nfolds = 50, lambda = exp(seq(-5,2,1)),
+  family='binomial', intercept = T, nlambda=50) #normalmente ponemos intercept = T
+mod_ridge_cv$lambda.1se
+mod_ridge_cv$lambda.min
+plot(mod_ridge_cv)
 ```
 
-```{r}
-mostrar_imagen(130, df_train)
+
+### Devianzas
+
+```{r deviance}
+preds_ridge <- predict(mod_ridge_cv, lambda=mod_ridge_cv$lambda.min, 
+         newx = df_train2[,c(1:855,857)] %>% data.matrix,
+        type = 'response')
+preds_ridge_se <- predict(mod_ridge_cv, lambda=mod_ridge_cv$lambda.1se, 
+         newx = df_train2[,c(1:855,857)] %>% data.matrix,
+        type = 'response')
+qplot(preds_ridge, preds_ridge_se ) + geom_abline(intercept=0, slope=1, col='red')
+head(preds_ridge)
+head(preds_ridge_se)
+```
+
+### ROCR: Desempeño y sensibilidad
+
+```{r ROCR}
+pred <- prediction(preds_ridge, df_train$estado)
+perf <- performance(pred, measure='sens', x.measure ='fpr')
+table(preds_ridge_se > 0.5, df_train$estado)
+prop.table(table(preds_ridge_se > 0.45, df_train$estado), 2)
+plot(perf, col='green')
 ```
 
