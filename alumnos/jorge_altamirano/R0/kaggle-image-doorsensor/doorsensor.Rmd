@@ -147,14 +147,20 @@ convertir_imagen2 <- function(dat, nrow = 200, ncol = 190, seq = 1) {
 a_1 = c(30, 30, 50, 140, 200)
 a_2 = c(30, 50, 88, 110, 200)
 a_3 = c(35, 30, 137, 88, 200)
+a_4 = c(20, 10, 45, 75, 200)
+a_5 = c(15, 10, 74, 84, 200)
 a1 = submatrix(a_1[1], a_1[2], a_1[3], a_1[4], a_1[5])
 a2 = submatrix(a_2[1], a_2[2], a_2[3], a_2[4], a_2[5])
 a3 = submatrix(a_3[1], a_3[2], a_3[3], a_3[4], a_3[5])
+a4 = submatrix(a_4[1], a_4[2], a_4[3], a_4[4], a_4[5])
+a5 = submatrix(a_5[1], a_5[2], a_5[3], a_5[4], a_5[5])
 # a = submatrix(132,75,45,87,200)
 # convertir_imagen2(dat=df_train[51,a],132,75,1); knitr::include_graphics("tmp/test-subpic-1.jpg")
 convertir_imagen2(dat=df_train[51,a1],a_1[1],a_1[2],"a1"); knitr::include_graphics("tmp/test-subpic-a1.jpg")
 convertir_imagen2(dat=df_train[51,a2],a_2[1],a_2[2],"a2"); knitr::include_graphics("tmp/test-subpic-a2.jpg")
 convertir_imagen2(dat=df_train[51,a3],a_3[1],a_3[2],"a3"); knitr::include_graphics("tmp/test-subpic-a3.jpg")
+convertir_imagen2(dat=df_train[51,a4],a_4[1],a_4[2],"a4"); knitr::include_graphics("tmp/test-subpic-a4.jpg")
+convertir_imagen2(dat=df_train[51,a5],a_5[1],a_5[2],"a5"); knitr::include_graphics("tmp/test-subpic-a5.jpg")
 ```
 
 #### Reducir el número de variables
@@ -187,6 +193,7 @@ mostrar_imagen3 <- function(v, nrow = 190, ncol = 200){
 load(file = "df_train2.Robj")
   # date()
   # # Para evitar retrasos llamamos _load_
+  # load(file = "df_train2_names.Robj")
   # df_train2 <- NULL
   # for(i in 1:nrow(df_train)) { #nrow(df_train)
   #   b1 <- pixels_average(dat = df_train, renglon = i, size = 2,
@@ -195,21 +202,28 @@ load(file = "df_train2.Robj")
   #           a_2[1], a_2[2], a_2[3], a_2[4], a_2[5])
   #   b3 <- pixels_average(dat = df_train, renglon = i, size = 2,
   #           a_3[1], a_3[2], a_3[3], a_3[4], a_3[5])
-  #   df_train2 <- rbind(df_train2, c(b1,b2,b3,df_train[i,c(38001,38003)]))
+  #   b4 <- pixels_average(dat = df_train, renglon = i, size = 2,
+  #           a_4[1], a_4[2], a_4[3], a_4[4], a_4[5])
+  #   b5 <- pixels_average(dat = df_train, renglon = i, size = 2,
+  #           a_5[1], a_5[2], a_5[3], a_5[4], a_5[5])
+  #   df_train2.tmp <- c(b1,b2,b3,b4,b5,df_train[i,c(38001,38003)])
+  #   names(df_train2.tmp) <- df_train2_names
+  #   df_train2.tmp <- data.frame(df_train2.tmp)
+  #   df_train2 <- rbind(df_train2, df_train2.tmp)
   # }
+  # # df_train2_names <- names(df_train2.tmp)
   # df_train2 <- data.frame(df_train2)
-  df_train2$minutes <- as.numeric(df_train2$minutes)
-  df_train2$estado_cerrada <- as.factor(ifelse(df_train2$estado == "cerrada", T, F))
+  # df_train2$minutes <- as.numeric(df_train2$minutes)
+  # df_train2$estado_cerrada <- as.factor(ifelse(df_train2$estado == "cerrada", T, F))
   # save(df_train2, file = "df_train2.Robj")
+  # rm(df_train2_names, df_train2.tmp)
   # date()
-# a = submatrix(8,8, 0, 0, 8)
-# b = pixels_average(2, df_train[51,submatrix(2,2,95,120,200)])
 ```
 
 ## Creación del modelo 
 
 ```{r mod_ridge creation}
-mod_ridge <- glmnet(x = df_train2[,c(1:855,857)] %>% as.matrix, # [,c(1:855,857)]
+mod_ridge <- glmnet(x = df_train2[,c(1:940,942)] %>% as.matrix, # [,c(1:855,857)]
   y = df_train2$estado_cerrada,
   alpha = 0, #ridge
   family='binomial', intercept = F, nlambda=50) #normalmente ponemos intercept = T
@@ -224,7 +238,7 @@ plot(mod_ridge, xvar = "lambda", ylim = c(-1e-04, 1e-04))
 ```
 
 ```{r}
-mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix, # [,c(1:855,857)]
+mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:940,942)] %>% data.matrix, # [,c(1:855,857)]
   y = df_train2$estado_cerrada,
   alpha = 0, #ridge
   nfolds = 50,
@@ -233,10 +247,10 @@ mod_ridge_cv$lambda.1se
 plot(mod_ridge_cv)
 ```
 ```{r cropped ridge}
-mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:855,857)] %>% data.matrix,
+mod_ridge_cv <- cv.glmnet(x = df_train2[,c(1:940,942)] %>% data.matrix,
   y = df_train2$estado_cerrada,
   alpha = 0, #ridge
-  nfolds = 50, lambda = exp(seq(-3,0,1)),
+  nfolds = 50, lambda = exp(seq(-1,1,0.5)),
   family='binomial', intercept = T, nlambda=50) #normalmente ponemos intercept = T
 mod_ridge_cv$lambda.1se
 mod_ridge_cv$lambda.min
@@ -248,10 +262,10 @@ plot(mod_ridge_cv)
 
 ```{r Ridge predicts}
 preds_ridge <- predict(mod_ridge_cv, lambda=mod_ridge_cv$lambda.min, 
-         newx = df_train2[,c(1:855,858)] %>% data.matrix,
+         newx = df_train2[,c(1:940,942)] %>% data.matrix,
         type = 'response')
 preds_ridge_se <- predict(mod_ridge_cv, lambda=mod_ridge_cv$lambda.1se, 
-         newx = df_train2[,c(1:855,858)] %>% data.matrix,
+         newx = df_train2[,c(1:940,942)] %>% data.matrix,
         type = 'response')
 qplot(preds_ridge, preds_ridge_se ) + geom_abline(intercept=0, slope=1, col='red')
 head(preds_ridge)
@@ -273,31 +287,34 @@ plot(perf, col='green')
 ### Preparación de los datos de prueba
 
 ```{r df_test processing preparation}
-load(file = "df_test2.Robj")
+# load(file = "df_test2.Robj")
 # # Toma mucho tiempo por lo que se opta por guardar los objetos
-# date()
-# load(file = "df_test2_names.Robj")
-# df_test2 <- NULL
-# # for(i in 1:(nrow(df_test)-587)) { #nrow(df_test)
-# for(i in 1:nrow(df_test)) { #nrow(df_test)
-#   b1 <- pixels_average(dat = df_test, renglon = i, size = 2,
-#           a_1[1], a_1[2], a_1[3], a_1[4], a_1[5])
-#   b2 <- pixels_average(dat = df_test, renglon = i, size = 2,
-#           a_2[1], a_2[2], a_2[3], a_2[4], a_2[5])
-#   b3 <- pixels_average(dat = df_test, renglon = i, size = 2,
-#           a_3[1], a_3[2], a_3[3], a_3[4], a_3[5])
-#   df_test2.tmp <- c(b1,b2,b3,df_test[i,c(38001,38003)])
-#   names(df_test2.tmp) <- df_test2_names
-#   df_test2.tmp <- data.frame(df_test2.tmp)
-#   df_test2 <- rbind(df_test2, df_test2.tmp)
-#   # names(df_test2) <- df_test2_names
-#   # df_test2 <- data.frame(df_test2)
-# }
-# df_test2_names <- names(df_test2.tmp)
-# names(df_test2) <- df_test2_names
-# rm(df_test2_names, df_test2.tmp)
-# save(df_test2, file = "df_test2.Robj")
-# date()
+  # date()
+  # load(file = "df_test2_names.Robj")
+  # df_test2 <- NULL
+  # for(i in 1:nrow(df_test)) { #nrow(df_test)
+  # # for(i in 401:405) { #nrow(df_test)
+  #   b1 <- pixels_average(dat = df_test, renglon = i, size = 2,
+  #           a_1[1], a_1[2], a_1[3], a_1[4], a_1[5])
+  #   b2 <- pixels_average(dat = df_test, renglon = i, size = 2,
+  #           a_2[1], a_2[2], a_2[3], a_2[4], a_2[5])
+  #   b3 <- pixels_average(dat = df_test, renglon = i, size = 2,
+  #           a_3[1], a_3[2], a_3[3], a_3[4], a_3[5])
+  #   b4 <- pixels_average(dat = df_test, renglon = i, size = 2,
+  #           a_4[1], a_4[2], a_4[3], a_4[4], a_4[5])
+  #   b5 <- pixels_average(dat = df_test, renglon = i, size = 2,
+  #           a_5[1], a_5[2], a_5[3], a_5[4], a_5[5])
+  #   df_test2.tmp <- c(b1,b2,b3,b4,b5,df_test[i,c(38001,38003)])
+  #   names(df_test2.tmp) <- df_test2_names
+  #   df_test2.tmp <- data.frame(df_test2.tmp)
+  #   df_test2 <- rbind(df_test2, df_test2.tmp)
+  # }
+  # 
+  # df_test2_names <- names(df_test2.tmp)
+  # names(df_test2) <- df_test2_names
+  # rm(df_test2_names, df_test2.tmp)
+  # save(df_test2, file = "df_test2.Robj")
+  # date()
 ```
 
 
@@ -305,12 +322,12 @@ load(file = "df_test2.Robj")
 
 ```{r Ridge predicts test}
 preds_ridge_se_test <- predict(mod_ridge_cv, lambda=mod_ridge_cv$lambda.1se, 
-         newx = df_test2[,c(1:855,857)] %>% data.matrix,
+         newx = df_test2[,c(1:940,942)] %>% data.matrix,
         type = 'response')
 qplot(preds_ridge_se_test[1:400,], preds_ridge_se ) + geom_abline(intercept=0, slope=1, col='red')
 table(preds_ridge_se_test > 0.5)
 prop.table(table(preds_ridge_se_test > 0.5))
-head(preds_ridge_se_test)
+tail(preds_ridge_se_test)
 ```
 
 #### Sacar probabilidades con ID
@@ -319,6 +336,6 @@ head(preds_ridge_se_test)
 predicciones_prueba <- data.frame(id = df_test$id, estado = preds_ridge_se_test)
 names(predicciones_prueba) <- c("id", "estado")
 write_csv(predicciones_prueba, "predicciones_prueba.csv")
-head(predicciones_prueba , n = 10)
+tail(predicciones_prueba , n = 10)
 ```
 
