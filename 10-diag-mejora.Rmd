@@ -80,7 +80,7 @@ length(negativos)
 length(positivos)
 ```
 
-```{r}
+```{r, results='asis'}
 read_file(negativos[1])
 read_file(positivos[1])
 ```
@@ -99,7 +99,7 @@ necesitamos al menos una tasa de correctos de 90\% para que el score sea confiab
 Empezamos por construir funciones para leer datos (ver script). 
 Construimos un data frame:
 
-```{r}
+```{r, results = 'asis'}
 source('./scripts/funciones_sentiment.R')
 df <- prep_df('./datos/sentiment/') %>% unnest(texto)
 nrow(df)
@@ -279,7 +279,7 @@ head(calc_vocabulario(df_ent, 100, remove_stop = TRUE))
 
 
 ```{r}
-vocabulario <- calc_vocabulario(df_ent, 3000, remove_stop = TRUE)
+vocabulario <- calc_vocabulario(df_ent, 2000, remove_stop = TRUE)
 head(vocabulario %>% arrange(desc(frec)),20)
 tail(vocabulario %>% arrange(desc(frec)),20)
 ```
@@ -290,17 +290,17 @@ este proceso también lo podemos hacer con cv.glmnet de manera más rápida.
 
 
 ```{r}
-mod_x <- correr_modelo_cv(df_ent, df_pr, vocabulario, lambda = exp(seq(-10,2,0.1)))
+mod_x <- correr_modelo_cv(df_ent, df_pr, vocabulario, 
+                          lambda = exp(seq(-10,5,0.1)))
 #mod_x <- correr_modelo(df_ent, df_pr, vocabulario, lambda =1)
 #mod_x <- correr_modelo(df_ent, df_pr, vocabulario, lambda =0.1)
 #mod_x <- correr_modelo(df_ent, df_pr, vocabulario, lambda =0.01)
 ```
 
-No estamos mejorando. Podemos intentar con un número diferente de entradas (menos,
-pues nuestro problema es varianza):
+No estamos mejorando. Podemos intentar con un número diferente de entradas:
 ```{r}
 vocabulario <- calc_vocabulario(df_ent, 4000, remove_stop = TRUE)
-mod_x <- correr_modelo_cv(df_ent, df_pr, vocabulario, lambda = exp(seq(-10,2,0.1)))
+mod_x <- correr_modelo_cv(df_ent, df_pr, vocabulario, lambda = exp(seq(-10,5,0.1)))
 ```
 
 Y parece que nuestra estrategia no está funcionando muy bien.
@@ -402,16 +402,33 @@ mod_x <- correr_modelo_cv(df_ent_grande, df_pr, voc, alpha=0, lambda = exp(seq(-
 Este camino no se ve mal, pero no hemos logrado mejoras. Aunque quizá valdría la pena
 intentar refinar más y ver qué pasa. 
 
-## Análisis de errores
+## Examen de modelo y Análisis de errores
 
 
-Ahora podemos ver qué errores estamos cometiendo. Busquemos los peores. Corremos el mejor
+
+
+
+
+
+Ahora podemos ver qué errores estamos cometiendo, y cómo está funcionando el modelo. Busquemos los peores. Corremos el mejor
 modelo hasta ahora:
 
 ```{r}
 vocabulario <- calc_vocabulario(df_ent_grande, 4000, remove_stop = FALSE)
 mod_x <- correr_modelo_cv(df_ent_grande, df_pr, vocabulario, lambda = exp(seq(-5,2,0.1)))
 ```
+
+```{r}
+coeficientes <- predict(mod_x$mod, lambda = 'lambda.min', type = 'coefficients') 
+coef_df <- data_frame(palabra = rownames(coeficientes),
+                      coef = coeficientes[,1])
+arrange(coef_df, coef) %>% print(n=20)
+arrange(coef_df, desc(coef)) %>% print(n=20)
+
+```
+
+
+
 
 Y busquemos las diferencias más grandes del la probabilidad ajustada con la
 clase observada
@@ -424,11 +441,14 @@ probs <- predict(mod_x$mod, newx = x, type ='response', s='lambda.min')
 df_1 <- data_frame(id = rownames(x), y=y, prob = probs[,1]) %>%
   mutate(error = y - prob) %>% arrange(desc(abs(error)))
 df_1
+```
+
+```{r, results='asis'}
 filter(df, id == 1461) %>% pull(texto)
 filter(df, id == 1508) %>% pull(texto)
 ```
 
-```{r}
+```{r, results='asis'}
 filter(df, id == 222) %>% pull(texto) #negativa
 filter(df, id == 25) %>% pull(texto) #negativa
 filter(df, id == 728) %>% pull(texto) #negativa
@@ -458,7 +478,7 @@ mod_bigramas <- correr_modelo_cv(df_ent_grande, df_pr, vocabulario_bigramas,
 
 ```
 
-Este resultado no es malo. Podemos intentar construir un modelo con unigramas
+Este resultado no es tan malo. Podemos intentar construir un modelo juntando unigramas
 y bigramas:
 
 ```{r}

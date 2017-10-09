@@ -20,7 +20,8 @@ knitr::include_graphics('./imagenes/arboles_1.png')
 - Nótese que los árboles pueden capturar interacciones entre las
 variables de entradas. En nuestro ejemplo ficticio, "automóvil" nos
 da información acerca del ingreso, pero solo caundo el nivel de educación
-del jefe de familia es bajo.
+del jefe de familia es bajo. (Ejercicio: si el ingreso fuera una cantidad numérica, ¿cómo escribirías este modelo con una suma
+de términos que involucren las variables mostradas en el diagrama?)
 - Árboles también pueden aproximar relaciones no lineales entre entradas
 y variable de salida (es similar a los ejemplos donde haciamos categorización
 de variables de entrada).
@@ -50,25 +51,25 @@ Para definir el proceso de construcción de los árboles, debemos definir:
 más puros (que una sola clase domine).
 2. ¿Cuándo declarar a un nodo como terminal? ¿Cuándo particionar más profundamente? Idea: dependiendo de la aplicación, buscamos hacer árboles
 chicos, o en otras árboles grandes que después podamos para no sobreajustar.
-3. ¿Cómo hacer predicciones en nodos terminales? IDea: escoger la clase más
+3. ¿Cómo hacer predicciones en nodos terminales? Idea: escoger la clase más
 común en cada nodo terminal (la de máxima probabilidad).
 
 
-### Reglas de partición
+### Tipos de partición
 
 Supongamos que tenemos variables de entrada $(X_1,\ldots, X_p)$. Recursivamente
-particionamos cada nodo escogiendo entre particiones talques que:
+particionamos cada nodo escogiendo entre particiones tales que:
 
 - Dependen de una sola variable de entrada $X_i$
 - Si $X_i$ es continua, la partición es de la forma $\{X_i\leq c\},\{X_i> c\}$,
 para alguna $c$ (punto de corte)
 - Si $X_i$ es categórica, la partición es de la forma
 $\{X_i\in S\},\{X_i\notin S\}$, para algún subconjunto $S$ de categorías de $X_i$.
-- En cada nodo candidatos, escogemos uno de estos cortes para particionar.
+- En cada nodo candidato, escogemos uno de estos cortes para particionar.
 
 ¿Cómo escogemos la partición en cada nodo? En cada nodo, la partición
 se escoge de una manera miope o local, intentando separar las
-calses lo mejor que se pueda (sin considerar qué pasa en cortes hechos
+clases lo mejor que se pueda (sin considerar qué pasa en cortes hechos
 más adelante). En un nodo dado, escogemos la partición que 
 **reduce lo más posible su impureza**:
 
@@ -84,9 +85,10 @@ Este medida se llama entropía. Hay otras posibilidades como medida
 de impureza (por ejemplo, coeficiente de Gini).
 ```
 
+
 #### Ejemplo
 Graficamos la medida de impureza para dos clases:
-```{r}
+```{r, fig.width=5}
 impureza <- function(p){
   -(p*log(p) + (1-p)*log(1-p))
 }
@@ -95,7 +97,10 @@ curve(impureza, 0,1)
 
 Donde vemos que la máxima impureza se alcanza cuando las proporciones de 
 clase en un nodo so 50-50, y la mínima impureza (máxima pureza) se alcanza
-cuando en el nodo solo hay casos de una clase. 
+cuando en el nodo solo hay casos de una clase. Nótese que esta cantidad es proporcional a la devianza del nodo, donde tenemos porbabilidad constante de clase 1 igual a $p$.
+
+
+
 
 ### Reglas de partición y tamaño del árobl
 
@@ -103,10 +108,50 @@ Podemos escribir la regla de partición, que se aplica a cada nodo de un árbol
 
 ```{block2, type='comentario'}
 **Regla de partición**
-En cada nodo, buscamos entre **todas** las variables $X_i$ y t **todos**
+En cada nodo, buscamos entre **todas** las variables $X_i$ y  **todos**
 los puntos de corte $c$ la que da la mayor reducción
-de impureza posible.
+de impureza posible (donde la impureza de un corte es el promedio
+ponderado por casos de las impurezas de los nodos resultantes).
 ```
+
+
+
+#### Ejemplo {-}
+Consideremos un nodo $t$, cuyos casos de entrenamiento son:
+```{r}
+n_t <- c(200,100, 150)
+impureza <- function(p){
+  -sum(p*log(p))
+}
+impureza(n_t/sum(n_t))
+
+```
+Y comparamos con
+```{r}
+n_t <- c(300,10, 140)
+impureza <- function(p){
+  p <- p[p>0]
+  -sum(p*log(p))
+}
+impureza(n_t/sum(n_t))
+```
+
+Ahora supongamos que tenemos un posible cortes, el primero
+resulta en
+```{r}
+n_t <- c(300,10, 140)
+n_1 = c(300,0,0)
+n_2 = c(0,10,140)
+(sum(n_1)/sum(n_t))*impureza(n_1/sum(n_1)) + (sum(n_2)/sum(n_t))*impureza(n_2/sum(n_2))
+```
+Un peor corte es:
+```{r}
+n_t <- c(300,10, 140)
+n_1 = c(200,0,40)
+n_2 = c(100,10,100)
+(sum(n_1)/sum(n_t))*impureza(n_1/sum(n_1)) + (sum(n_2)/sum(n_t))*impureza(n_2/sum(n_2))
+```
+
 
 Lo que resta explicar es qué criterio de paro utilizamos para dejar de particionar.
 
@@ -157,7 +202,13 @@ spam_tree_completo<-rpart(spam ~ ., data = spam_entrena, method = "class",
 prp(spam_tree_completo, type=4, extra=4)
 ```
 
-Podemos hacer predicciones con este árbol. Por ejemplo, en entrenamiento tenemos:
+Podemos examinar la parte de arriba del árbol:
+```{r}
+arbol.chico.1 <- prune(spam_tree_completo, cp=0.07)
+prp(arbol.chico.1, type = 4, extra = 4)
+```
+
+Podemos hacer predicciones con este árbol grande. Por ejemplo, en entrenamiento tenemos:
 
 ```{r}
 prop_clase <- predict(spam_tree_completo, newdata = spam_entrena)
@@ -167,7 +218,8 @@ y en prueba:
 
 ```{r}
 prop_clase <- predict(spam_tree_completo, newdata = spam_prueba)
-table(prop_clase[,2]>0.5, spam_prueba$spam )
+tab_confusion <- table(prop_clase[,2]>0.5, spam_prueba$spam )
+prop.table(tab_confusion, 2)
 ```
 Y notamos la brecha grande entre prueba y entrenamiento, lo que sugiere sobreajuste. Este árbol es demasiado grande.
 
@@ -191,7 +243,7 @@ en la muestra de entrenamiento, pero penaliza por el tamaño del árbol.
 
 Para escoger el tamaño del árbol correcto, definimos
 $T_\alpha \subset T$ como el subárbol de $T$ que
-minimiza la medidad $C_\alpha (T_\alpha)$.
+minimiza la medida $C_\alpha (T_\alpha)$.
 
 Para entender esta decisión, obsérvese que:
 
@@ -272,6 +324,7 @@ problema de varianza o sesgo?
 Podemos hacer predicciones con un sólo árbol. En el caso de spam, haríamos
 
 ```{r}
+set.seed(9293) # para hacer reproducible la validación cruzada
 spam_tree <-rpart(spam ~ ., data = spam_entrena, 
                   method = "class", control=list(cp=0, 
                                               minsplit=5,minbucket=1))
@@ -289,7 +342,7 @@ Y usamos la regla de mínimo error o a una desviación estándar
 del error mínimo:
 
 ```{r}
-arbol_podado <- prune(spam_tree, cp =  0.00276396)
+arbol_podado <- prune(spam_tree, cp =  0.00130301)
 prp(arbol_podado)
 ```
 
@@ -302,12 +355,21 @@ prop.table(table((probs_clase[,2]>0.5),spam_prueba$spam),2)
 ```
 
 
+### Árboles para regresión
+
+Para problemas de regresión, el criterio de pureza y la predicción
+en cada nodo terminal es diferente:
+
+- En los nodos terminales usamos el promedio los casos de entrenamiento que caen en tal nodo (en lugar de la clase más común)
+- La impureza de define como varianza: si $t$ es un nodo, su impureza está dada por $\frac{1}{n(t)}\sum (y - m)^2, donde la suma es sobre los casos que están en el nodo y $m$ es la media de las $y$'s del nodo.
+
 ### Variabilidad en el proceso de construcción
 
-
-Existe variabilidad considerable en el proceso de división.  Por ejemplo:
+Existe variabilidad considerable en el proceso de división, lo cual
+es una debilidad de los árboles.  Por ejemplo:
 
 ```{r}
+set.seed(9923)
 muestra.1 <- spam_entrena[sample(1:nrow(spam_entrena), nrow(spam_entrena), replace=T), ]
 spam.tree.completo.1 <-rpart(spam ~ ., data =  muestra.1, method = "class",
                           control = control_completo)
@@ -318,12 +380,18 @@ prp(arbol.chico.1, type = 4, extra = 4)
 ```{r}
 muestra.1 <- spam_entrena[sample(1:nrow(spam_entrena), nrow(spam_entrena), replace=T), ]
 spam.tree.completo.1 <-rpart(spam ~ ., data =  muestra.1, method = "class",
-                          control = control.completo)
+                          control = control_completo)
 arbol.chico.1 <- prune(spam.tree.completo.1, cp=0.03)
 prp(arbol.chico.1, type = 4, extra = 4)
 ```
 
-### Relación lineal
+Pequeñas diferencias en la muestra de entrenamiento produce
+distintas selecciones de variables y puntos de corte, y estructuras
+de árboles muchas veces distintas. Esto introduce varianza considerable
+en las predicciones.
+
+
+### Relaciones lineal
 
 Los árboles pueden requerir ser muy grandes para estimar apropiadamente
 relaciones lineales.
@@ -351,7 +419,7 @@ Ventajas:
 3. Son robustos en el sentido de que
  - valores numéricos atípicos no hacen fallar al método
  - no es necesario transformar variables
- - hay formas fáciles de lididar con datos faltantes (cortes sucedáneos)
+ - hay formas fáciles de lidiar con datos faltantes (cortes sucedáneos)
 4. Se ajustan rápidamente yson relativamente fácilmente de interpretar (por ejemplo, son útiles para clasificar en campo)
 5. Árboles grandes generalmente no sufren de sesgo.
 
@@ -369,3 +437,149 @@ de árbol totalmente distintas).
 4. Adicoinalmente, no son apropiados cuando hay variables categóricas con 
 muchas niveles: en estos casos, el árbol sobreajusta desde los primeros
 cortes, y las predicciones son malas.
+
+
+## Bosques aleatorios.
+
+Bosques aleatorios es un método de predicción que utiliza familias de
+árboles para hacer predicciones.
+
+Los árboles grandes tienen la ventaja de tener sesgo bajo, pero sufren de varianza alta. Podemos explotar el sesgo bajo si logramos controlar la varianza. Una idea primera para lograr esto es es hacer
+*bagging* de árboles:
+
+- Perturbar la muestra de entrenamiento de distintas maneras y producir árboles distintos (grandes). La perturbación más usada es tomar muestras bootstrap de los datos y ajustar un árbol a cada muestra bootstrap
+- Promediar el resultado de todos estos árboles para hacer predicciones. El proceso de promediar reduce la varianza, sin tener pérdidas en sesgo.
+
+### Bagging de árboles
+
+
+La idea básica de bagging (*bootstrap aggregation*) es la siguiente:
+
+Consideramos el proceso ${\mathcal L} \to T_{\mathcal L}$, que representa
+el proceso de ajuste de un árbol $T_{\mathcal L}$ a partir de la muestra de entrenamiento ${\mathcal L}$.  Si pudiéramos obtener
+distintas muestras de entrenamiento
+$${\mathcal L}_1, {\mathcal L}_2, \ldots, {\mathcal L}_B,$$
+y supongamos que construimos los árboles (que suponemos de regresión)
+$$T_1, T_2, \ldots, T_B,$$
+Podríamos mejorar nuestras predicciones construyendo el
+árbol promedio
+$$T(x) = \frac{1}{B}\sum_{i=b}^B  T_b (x)$$
+¿Por qué es mejor este árbol promedio que cualquiera de sus componentes? Veamos primero el sesgo. El valor esperado del árbol
+promedio es
+$$E[T(x)] = \frac{1}{B}\sum_{i=b}^B  E[T_b (x)]$$
+y como cada $T_b(x)$ se construye de la misma manera a partir
+de ${\mathcal L}_b$, y todas las muestras ${\mathcal L}_b$ se 
+extraen de la misma forma, todos los términos de la suma de la derecha son iguales:
+$$E[T(x)] =  E[T_1 (x)],$$
+lo que implica que el sesgo del promedio es igual al sesgo de
+un solo árbol (que es bajo, pues suponemos que los árboles son grandes).
+
+
+Ahora veamos la varianza,
+
+$$Var[T(x)] = \frac{1}{B^2}\sum_{i=b}^B  Var[T_b (x)],$$
+pues las muestras${\mathcal L}_b$ se extraen *de manera independiente* (si esto no fuera cierto, entonces esta ecuación no es válida). Por las mismas razones que arriba, todos los términos de la derecha son iguales, y
+$$Var[T(x)] = \frac{1}{B}\ Var[T_1 (x)]$$
+de modo que la varianza del árbol promedio es mucho más chica
+que la varianza de un árbol dado (si $B$ es grande).
+
+Sin embargo, no podemos tomar muestras de entrenamiento repetidamente
+para ajustar estos árboles. ¿Cómo podemos simular extraer distintas
+muestras de entrenamiento? Sabemos que si tenemos una muestra de entrenamiento fija ${\mathcal L}$, podemos evaluar la variación
+de esta muestra tomando **muestras bootstrap** de ${\mathcal L}$,
+que denotamos por
+
+$${\mathcal L}_1^*, {\mathcal L}_2^*, \ldots, {\mathcal L}_B^*,$$
+si  construimos los árboles (que suponemos de regresión)
+$$T_1^*, T_2^*, \ldots, T_B^*,$$
+podríamos mejorar nuestras predicciones construyendo el
+árbol promedio
+$$T^*(x) = \frac{1}{B}\sum_{i=b}^B  T_b^* (x)$$
+El argumento del sesgo aplica en este caso, pero el de la varianza no
+exactamente, pues las muestras bootstrap no son independientes (están correlacionadas a través de la muestra de entrenamiento de donde se obtuvieron),a pesar de que las muestras bootstrap se extraen de manera independiente de ${\mathcal L}$. De  esta forma, no esperamos una
+reducción de varianza tan grande como en el caso de muestras independientes.
+
+
+```{block2, type='comentario'}
+**Bagging**
+Sea ${\mathcal L} =\{(x^{(i)}, y^{(i)})\}_{i=1}^n$ una muestra de entrenamiento, y sean 
+$${\mathcal L}_1^*, {\mathcal L}_2^*, \ldots, {\mathcal L}_B^*,$$
+ muestras bootstrap de ${\mathcal L}$ (muestreamos con reemplazo
+ los **pares** $(x^{(i)}, y^{(i)})$, para obtener una muestra de tamaño $n$).
+ 
+1. Para cada muestra bootstrap construimos un árbol
+ $${\mathcal L}_b^* \to T_b^*$$.
+2. (Regresión) Promediamos árboles para reducir varianza
+ $$T^*(x) = \frac{1}{B}\sum_{i=b}^B  T_b^*(x)$$
+3. (Clasificación) Tomamos votos sobre todos los árboles:
+ $$T^*(x) = argmax_g \{ \# \{i|T_b^*(x)=g\}\}.$$ Podemos
+ también calcular probabilidades promedio sobre todos
+ los árboles.
+
+Bagging muchas veces reduce el error de predicción gracias
+a una reducción modesta de varianza.
+```
+
+
+**Nota**: No hay garantía de bagging reduzca el error de entrenamiento, especialmente si los árboles base son muy
+malos clasificadores ¿Puedes pensar en un ejemplo donde empeora?
+
+
+#### Ejemplo {-}
+Probemos con el ejemplo de spam. Construimos árboles con muestras bootstrap
+de los datos originales de entrenamiento:
+
+```{r}
+muestra_bootstrap <- function(df){
+  df %>% sample_n(nrow(df), replace = TRUE)
+}
+arboles_bagged <- lapply(1:30, function(i){
+  muestra <- muestra_bootstrap(spam_entrena)
+  arbol <- rpart(spam ~ ., data = muestra, 
+                  method = "class", control=list(cp=0, 
+                                              minsplit=5,minbucket=1))
+  arbol
+})
+```
+
+Examinemos la parte de arriba de algunos de estos árboles:
+
+```{r}
+prp(prune(arboles_bagged[[1]], cp =0.01))
+prp(prune(arboles_bagged[[2]], cp =0.01))
+prp(prune(arboles_bagged[[3]], cp =0.01))
+
+```
+Ahora probemos hacer predicciones con los 30 árboles:
+
+```{r}
+library(purrr)
+preds_clase <- lapply(arboles_bagged, function(arbol){
+  preds <- predict(arbol, newdata = spam_prueba)[,2]
+})
+preds <- preds_clase %>% reduce(cbind)
+dim(preds)
+preds_bag <- apply(preds, 1, mean)
+prop.table(table(preds_bag > 0.5, spam_prueba$spam),2)
+```
+
+Y vemos que tenemos una mejora inmediata con respecto un sólo árbol
+grande (tanto un árbol grande como uno podado con costo-complejidad).
+El único costo es el cómputo adicional para procesar las muestras bootstrap
+
+
+```{block2, type ='comentario'}
+
+- ¿Cuántas muestras bootstrap? Bagging generalmente funciona mejor
+cuando tomamos tantas muestras como sea razonable - aunque también es un 
+parámetro que se puede afinar.
+- Bagging por sí solo se usa rara vez. El método más potente es bosques aleatorios, donde e proceso
+básico es bagging de árboles, pero añadimos ruido adicional en la 
+construcción de árboles.
+```
+
+
+
+
+
+

@@ -10,7 +10,8 @@ leer_datos <- function(tipo, path){
     con <- file(archivo, "r", blocking = FALSE)
     lineas <- readLines(con = con)
     close(con)
-    paste('Review ',lineas, sep=' ')
+    lineas[1] <- paste('Review ',lineas[1], sep=' ')
+    lineas
   })
   lapply(lista_textos, function(x){
     y <- paste(x, collapse=' ')  
@@ -152,7 +153,9 @@ correr_modelo <- function(df_ent, df_pr, vocabulario,
 
 
 correr_modelo_cv <- function(df_ent, df_pr, vocabulario, 
-                             alpha = 0, lambda = NULL, stem=FALSE, bigram = FALSE){
+                             alpha = 0, lambda = NULL, 
+                             stem=FALSE, bigram = FALSE, 
+                             standardize = TRUE){
   if(!bigram){
     df_filt_ent <- tokenizar_datos(df_ent, vocabulario, stem = stem)
     df_filt_pr <- tokenizar_datos(df_pr, vocabulario, stem = stem)
@@ -166,7 +169,7 @@ correr_modelo_cv <- function(df_ent, df_pr, vocabulario,
   mat_pr <- obtener_xy(df_filt_pr)
   
   mod_reg <- cv.glmnet(x = mat_ent$x , y = mat_ent$y , alpha = alpha, 
-                       lambda = lambda,
+                       lambda = lambda, standardize = standardize,
                     family ='binomial')
   plot(mod_reg)
   preds <- predict(mod_reg, newx = mat_ent$x, type ='class', s = 'lambda.min')
