@@ -1,0 +1,241 @@
+---
+title: "Ingreso de los hogares"
+output:
+  html_document
+---
+
+Este es el código para preparar los datos, donde tomamos unas cuantas
+variables de la encuesta [Enigh 2016](http://www.beta.inegi.org.mx/proyectos/enchogares/regulares/enigh/nc/2016/default.html).
+**En este caso ignoraremos el hecho de que estos datos resultan de un diseño
+complejo de muestra**. En este caso, convendría diseñar un esquema de validación 
+apropiado (extrayendo unidades primarias de muestreo completas, por ejemplo), y
+usar los factores de expansión de la muestra.
+
+```{r}
+library(readr)
+library(dplyr)
+library(ROCR)
+library(ggplot2)
+library(tidyr)
+library(randomForest)
+concentrado <- read_csv('../../../datos/enigh_2016/concentradohogar.csv')
+hogares <- read_csv('../../../datos/enigh_2016/hogares.csv')
+problems(concentrado)
+head(concentrado)
+names(concentrado)
+concen_2 <- left_join(concentrado, hogares)
+names(concen_2)[1] <- "folioviv"
+datos <- concen_2 %>% select(folioviv, foliohog, tam_loc, educa_jefe, 
+                             celular, tv_paga, conex_inte, num_auto, num_tosta, num_lavad,
+                             num_compu, ing_cor, factor) %>%
+                      mutate(tam_loc = recode(tam_loc, `1`='100 mil+',`2`='15mil-100mil',
+                                              `3`='2.5mil-15mil',`4`='Menos de 2.5 mil')) %>%
+                      mutate(celular = recode(celular, `1`='Si', `2`='No')) %>%
+                      mutate(tv_paga = recode(tv_paga, `1`='Si', `2`='No')) %>%
+                      mutate(celular = recode(celular, `1`='Si', `2`='No')) %>%
+                      mutate(conex_inte = recode(conex_inte, `1`='Si', `2`='No')) 
+
+write_csv(datos, path ='../../../datos/vars_enigh_2016.csv')            
+```
+
+### Datos
+
+Buscamos predecir el ingreso corriente trimestral 
+de los hogares a partir de algunas de sus
+características, el tamaño de la localidad, y la educación del jefe(a) del hogar.
+Para este ejemplo usamos una muestra:
+
+```{r}
+set.seed(293)
+datos <- read_csv(file = '../../../datos/vars_enigh_2016.csv')
+datos <- sample_n(datos, 10000)
+```
+
+Vamos a predecir el log del ingreso:
+
+```{r}
+datos$ingreso_log <- log(1 + datos$ing_cor)
+#escala log
+quantile(datos$ingreso_log, probs = seq(0,1,0.05))
+#escala original
+exp(quantile(datos$ingreso_log, probs = seq(0,1,0.05)))
+```
+
+### Árboles
+
+Corre el siguiente código
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+arbol_grande <- rpart(ingreso_log ~ tam_loc + educa_jefe + 
+      celular+ conex_inte + num_auto+ num_tosta+ num_lavad+ num_compu + factor, 
+      data= datos, cp=0)
+prp(prune(arbol_grande, cp=0.004), type=4, extra=1, digits=3)
+```
+
+1. ¿Qué significa la información que hay en cada nodo? Nota: puedes interpretar diferencias
+de log ingreso rápidamente si tomas en cuenta que una diferencia en la escala logarítmica
+(para diferencias más chicas) es aproximadamente cambio porcentual en ingreso. Por ejemplo
+la diferencia de ingreso en escala log de 4.7 a 4.9 es aproximadamente un incremento
+de 20\%. 
+
+_El dígito de arriba es el ingreso en escala logarítmica de la y que deseamos estimar y el valor de n es el número de hoja. En este caso es un rango de 1 a 10,000_
+
+```{r}
+summary(arbol_grande$frame)
+```
+
+
+2. Poda el árbol para mostrar solamente un árbol con 5 nodos terminales. Evalúa el 
+error de entrenamiento para este árbol. 
+
+```{r}
+arbol_peq <- prune.rpart(arbol_grande, cp = 0.014652129)
+prp(arbol_peq, type = 4, extra = 1, digits = 3)
+```
+
+_Error de entrenamiento_
+
+Error Promedio
+```{r}
+preds_peq <- predict(arbol_peq, newdata = datos)
+preds_gde <- predict(arbol_grande, newdata = datos)
+paste("Promedio de errores árbol pequeño:", 
+      mean(abs(preds_peq-datos$ingreso_log)))
+paste("Promedio de errores árbol grande: ",
+      mean(abs(preds_gde-datos$ingreso_log))
+)
+```
+
+Error RSS
+```{r}
+rss_calc <- function(dat, y_hat) {
+  y <- dat$ingreso_log
+  e <- (y - y_hat)
+  rss <- sum(e^2)
+  0.5*rss
+}
+rss_peq <- rss_calc(datos, preds_peq)
+rss_gde <- rss_calc(datos, preds_gde)
+paste("Error RSS árbol pequeño:", 
+      rss_peq)
+paste("Error RSS árbol grande: ",
+      rss_gde)
+```
+
+_Además hice pruebas jugando con el valor de `Costo Computacional (CP)` y obviamente no varía mucho en la predicción, como era de esperarse, siempre y cuando se mantengan el mismo número de nodos terminales._
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+rm(preds_gde, preds_peq, rss, rss_gde, rss_peq, arbol_grande, arbol_peq)
+```
+
+
+### Bosques aleatorios
+
+```{r}
+#utiliza estos datos, que tienen las variables categóricas convertidas a factores.
+datos_df <- data.frame(unclass(datos))
+```
+
+1. Usa un bosque aleatorio para predecir el log ingreso. Prueba algunos valores
+de $m$ (mtry) y escoge un modelo final usando el error out-of-bag. Grafica
+cómo evoluciona la estimación OOB del error conforme aumenta el número de árboles.
+
+_Creación de los 3 modelos:_
+
+```{r}
+bosque_3 <- randomForest(ingreso_log ~ tam_loc + educa_jefe + celular+ conex_inte + 
+    num_auto + num_tosta+ num_lavad+ num_compu + factor, data = datos_df, 
+    ntree = 1500, mtry = 3, importance = T)
+bosque_6 <- randomForest(ingreso_log ~ tam_loc + educa_jefe + celular+ conex_inte
+    + num_auto + num_tosta+ num_lavad+ num_compu + factor, data = datos_df, 
+    ntree = 1500, mtry = 6, importance = T)
+bosque_9 <- randomForest(ingreso_log ~ tam_loc + educa_jefe + celular+ conex_inte
+    + num_auto + num_tosta+ num_lavad+ num_compu + factor, data = datos_df, 
+    ntree = 1500, mtry = 9, importance = T)
+```
+
+_Errores RSS_
+
+```{r}
+preds_3 <- predict(bosque_3, data = datos_df, type = 'response')
+preds_6 <- predict(bosque_6, data = datos_df, type = 'response')
+preds_9 <- predict(bosque_9, data = datos_df, type = 'response')
+
+rss_3 <- rss_calc(datos, preds_3)
+rss_6 <- rss_calc(datos, preds_6)
+rss_9 <- rss_calc(datos, preds_9)
+c(c("", "m=3", "m=6", "m=9"),c("RSS", rss_3, rss_6, rss_9))
+```
+
+_Graficación de los errores out-of-bag_
+
+```{r}
+# rm(preds_3, preds_6, preds_9) # sólo para fines de clarificación y limpieza de código
+errores_rf <- NULL
+errores_rf$ntrees <- 1:length(bosque_3$mse)
+errores_rf$bosque_3 <- bosque_3$mse 
+errores_rf$bosque_6 <- bosque_6$mse 
+errores_rf$bosque_9 <- bosque_9$mse 
+summary(as.data.frame(errores_rf))
+errores_rf <- as.data.frame(errores_rf) %>%
+  gather(metric, value, -ntrees)
+ggplot(errores_rf, aes(x=ntrees, y = value, colour = metric)) + geom_line() +
+  labs(y = "MSE (Error Cuadrático Promedio)", colour = "m")
+ggplot() + 
+  geom_point(aes(x = 1:length(bosque_3$oob.times), y = bosque_3$oob.times), alpha = 0.05, color="red") +
+  geom_point(aes(x = 1:length(bosque_6$oob.times), y = bosque_6$oob.times), alpha = 0.05, color="green") + 
+  geom_point(aes(x = 1:length(bosque_9$oob.times), y = bosque_9$oob.times), alpha = 0.05, color="blue") +
+  labs(y = "oob.times", x = "observación", col = "Colores")
+```
+
+
+
+2. Examina las importancias de las variables. ¿Cuáles son las 3 variables más importantes? 
+
+_Para $m = {3, 6, 9}$ tenemos estas 3 principales variables importantes, aunque con diferentes valores_
+
+```{r}
+head(names(importance(bosque_3)[,1]), n=3) 
+```
+
+_Estas son las 3 variables más importantes en todos los casos_
+
+```{r}
+imp3 <- as.data.frame(importance(bosque_3))
+imp3$variable <- rownames(importance(bosque_3))
+imp6 <- as.data.frame(importance(bosque_6))
+imp6$variable <- rownames(imp6)
+imp9 <- as.data.frame(importance(bosque_9))
+imp9$variable <- rownames(imp9)
+imp <- imp3 %>% inner_join(imp6, by = "variable") %>% 
+  inner_join(imp9, by = "variable") 
+names(imp) <- c("MSE m=3", "Pureza m=3", "Variable",
+      "MSE m=6", "Pureza m=6",
+      "MSE m=9", "Pureza m=9"
+      )
+imp <- imp %>% select(c("Variable", 
+        "MSE m=3", "MSE m=6", "MSE m=9", 
+        "Pureza m=3", "Pureza m=6", "Pureza m=9"
+      ))
+rm(imp3,imp6,imp9)
+head(imp, n=3)
+```
+
+
+3. Incluye una o dos variables adicionales que crees que puedan tener importancia alta. ¿En qué 
+lugar aparecen?
+
+_Tomando la respuesta de la pregunta anterior, muestra las otras 6 variables_
+```{r}
+tail(names(importance(bosque_3)[,1]), n=6)
+```
+
+_Estos son sus valores_
+
+```{r}
+tail(imp, n=6)
+```
+
