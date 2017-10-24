@@ -1,6 +1,8 @@
 ---
 title: "Ingreso de los hogares"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 Este es el código para preparar los datos, donde tomamos unas cuantas
