@@ -4,6 +4,13 @@ output:
   html_document
 ---
 
+## preámbulo
+
+### Tab 1
+
+asdf
+
+### Tab 2
 Este es el código para preparar los datos, donde tomamos unas cuantas
 variables de la encuesta [Enigh 2016](http://www.beta.inegi.org.mx/proyectos/enchogares/regulares/enigh/nc/2016/default.html).
 **En este caso ignoraremos el hecho de que estos datos resultan de un diseño
