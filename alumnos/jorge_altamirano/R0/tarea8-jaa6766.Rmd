@@ -1,0 +1,215 @@
+---
+title: "Tarea 8"
+output: html_notebook
+---
+
+_Jorge III Altamirano Astorga (175904)_
+
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(randomForest)
+library(gbm)
+library(ggplot2)
+```
+
+
+## {.tabset}
+
+### Pregunta 1
+1. Revisa el script que vimos en clase de aplicación de bosques para
+predecir precios de casa (bosque-housing.Rmd). Argumenta por qué es mejor
+el segundo método para limpiar faltantes que el primero. Considera
+ - Cómo respeta cada método la división entrenamiento y validación
+ - El desempeño de cada método
+ 
+     _Debido a que el primer método `limpiar_faltantes()` imputa, sin importar si son faltantes estructurales, como se menciona en el Rmd. Sin embargo, imputa un valor arbitrario que pudiera no tener toda la coherencia lógica. Por ejemplo, la calidad del garage o la piscina si no existe el garage o la piscina, respectivamente._
+     
+     _En cambio, el método 2 `limpiar_faltantes_2()` "imputa" metiendo dichos faltantes mediante una categoría adicional: `No disponible`. Esto me suena como si fuera un mejor método de entrada, pues no sesga la información._
+     
+     _Respecto al punto 1: se respeta mediante el parámetro `datos_p`_
+     
+     _El punto #2 del desempeño en el mismo notebook se desempeña mejor `limpiar_faltantes_2()` que `limpiar_faltantes()` con un MSE OOB de 14.08% y 13.59%, respectivamente_
+ 
+### Pregunta 2 {.tabset}
+ 
+2. Considera las importancia de variables de bosque-housing.Rmd. Muestra
+las importancias basadas en permutaciones escaladas y no escaladas. ¿Con
+qué valores en el objeto randomForest se escalan las importancias?
+
+    _Como se puede apreciar en las siguientes subpestañas:_
+
+    1. _Cambian draḿaticamente los valores de las importancias de acuerdo a lo visto en clase._
+    2. _También cambia algunas variables en su posición de importancia, por lo que el punto anterior no sólo se refiere a importancia relativa. Esto se observa después de las primeras 2 variables en importancia del ranking: `vGrLivArea`, `vNeighborhood`_
+  
+    *Nota:* _se utilicé el método de imputación `limpiar_faltantes_2`_
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+set.seed(2912)
+limpiar_faltantes_2 <- function(datos, datos_p = NULL, min_cat = 10,
+                              to_factor = FALSE){
+  #limpieza de faltantes y tipos de variables
+  if(is.null(datos_p)){
+    datos_p <- datos
+  }
+  #abajo vamos a inferir el tipo de variable, pero podemos tener error si hay
+  #variables categóricas codificadas con números. Viendo data_description.txt, solo hay
+  #una, que arreglamos así:
+  datos <- datos %>% group_by(variable) %>% 
+    mutate(valor =ifelse(variable!='MSSubClass', valor, paste0('nivel_',valor)))
+  datos_p <- datos_p %>% group_by(variable) %>% 
+    mutate(valor = ifelse(variable!='MSSubClass', valor,paste0('nivel_',valor)))    
+  
+  # inferir el tipo de variable (categórica o numérica)
+  tipo_vars <- datos %>% group_by(variable) %>% 
+    summarise(categorica = all(is.na(as.numeric(valor))))
+  datos <- datos %>% left_join(tipo_vars) %>% ungroup
+  datos_p <- datos_p %>% left_join(tipo_vars) %>% ungroup
+  
+
+  #valores a imputar para numéricas (ver análisis del principio: usamos 0)
+  datos_num_medias <- datos %>% filter(!categorica) %>%
+                group_by(variable) %>% 
+                summarise(media = 0)
+                            
+
+  # Reasignación para categóricas
+  reasignar <- datos %>% filter(categorica) %>%
+                         mutate(valor_nuevo = ifelse(is.na(valor), 'no-disponible', valor)) #%>%
+                         #group_by(variable, valor) %>%
+                         #summarise(n = n()) #%>%
+                         #mutate(valor_nuevo = ifelse(n <= min_cat, 'Otros' , valor))
+
+  #imputación
+  datos_cat <- datos_p %>% filter(categorica)
+  datos_num <- datos_p %>% filter(!categorica)
+
+
+  #procesar categóricas
+  #primero agregamos categoría no disponible
+  datos_cat <- datos_cat %>% mutate(valor = ifelse(is.na(valor), 'no-disponible' ,valor))
+
+  # aquí falta limpiar cateogrías nuevas en muestra de prueba
+  datos_1 <- datos_cat %>% select(Id, variable, valor) %>% 
+                           spread(variable, valor, convert=TRUE)
+  if(to_factor){
+    datos_1 <- datos_1 %>% unclass %>% data.frame
+  }
+  # procesar numéricas
+  datos_2 <- datos_num %>% left_join(datos_num_medias) %>%
+                           mutate(valor = ifelse(is.na(valor), media,  valor)) %>%
+                           select(Id, variable, valor) %>% 
+                           spread(variable, valor, convert=TRUE)
+  # unir tablas
+  bind_cols(datos_1, datos_2)
+}
+entrena <- read_csv('../../../datos/houseprices/house-prices-train.csv')
+prueba  <- read_csv('../../../datos/houseprices/house-prices-test.csv')
+entrena_larga <- entrena %>% gather(variable, valor, -Id)
+prueba_larga <- prueba %>% gather(variable, valor, -Id)
+entrena_na <- limpiar_faltantes_2(entrena_larga, to_factor = TRUE) %>% 
+  select(-Id, -Utilities) %>% as.data.frame
+prueba_na <- limpiar_faltantes_2(entrena_larga, prueba_larga, to_factor = TRUE) %>% 
+  select(-Id, -Utilities) %>% as.data.frame
+names(entrena_na) <- paste('v', names(entrena_na), sep='') #evitar nombres no válidos de variables
+names(prueba_na) <- paste('v', names(prueba_na), sep='') #evitar nombres no válidos de variables
+```
+
+#### _Datos escalados_
+
+```{r}
+set.seed(2912) #reproducibilidad
+bosque_precios_1 <- randomForest(log(vSalePrice) ~., data = entrena_na, 
+                               mtry = 10, ntree=1500, importance=TRUE)
+imp_1 <- importance(bosque_precios_1)[,1] 
+data_frame( variable = names(imp_1), importance = round(imp_1,1)) %>% arrange(desc(imp_1))
+```
+
+#### _Datos no escalados_
+
+
+```{r}
+set.seed(2912) #reproducibilidad
+bosque_precios_2 <- randomForest((vSalePrice) ~., data = entrena_na, 
+                               mtry = 10, ntree=1500, importance=TRUE)
+imp_2 <- importance(bosque_precios_2)[,1] 
+data_frame( variable = names(imp_2), importance = round(imp_2,1)) %>% arrange(desc(imp_2))
+```
+
+
+### Pregunta 3
+
+3. Grafica importancias de Gini (MeanDecreaseGini) y de permutaciones. 
+¿Los resultados son similiares? Explica qué significa MeanDecreaseGini en el
+contexto de un problema de regresión.
+
+    _Dado que `vSalePrice` es no es factor `is.factor(entrena_na$vSalePrice)=``r is.factor(entrena_na$vSalePrice)` es un problema de regresión, utilizando el RSS de acuerdo a lo siguiente:_
+
+    > The second measure is the total decrease in node impurities from splitting on the variable, averaged over all trees. For classification, the node impurity is measured by the Gini index. For *regression*, it is measured by *residual sum of squares*.
+    
+    [Fuente](https://www.rdocumentation.org/packages/randomForest/versions/4.6-12/topics/importance)
+
+```{r}
+imp_1 <- data_frame( variable = names(imp_2), importance = round(imp_2,1)) %>% arrange(desc(imp_2))
+ggplot(imp_1, aes(x=variable, y=importance)) + 
+  scale_x_discrete(limits=c(unique(imp_1$variable))) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+
+
+### Pregunta 4
+
+4. Considera nuestra primera corrida de gradient boosting
+en las notas para el ejemplo de los precios de las casas. Corre este ejemplo
+usando pérdida absoluta ($|y-f(x)|$)  en lugar de pérdida cuadrática
+($(y-f(x))^2$)
+
+```{r}
+set.seed(23411)
+modelo_sqerr <- gbm(log(vSalePrice) ~.,  data = entrena_na,
+                distribution = 'gaussian',
+                n.trees = 200, 
+                interaction.depth = 3,
+                shrinkage = 1, # tasa de aprendizaje
+                bag.fraction = 1,
+                train.fraction = 0.75)
+modelo_absloss <- gbm(log(vSalePrice) ~.,  data = entrena_na,
+                distribution = 'laplace',
+                n.trees = 200, 
+                interaction.depth = 3,
+                shrinkage = 1, # tasa de aprendizaje
+                bag.fraction = 1,
+                train.fraction = 0.75)
+```
+
+- Grafica las curvas de entrenamiento y validación conforme se agregan árboles
+
+```{r}
+dat_entrenamiento <- data_frame(entrena_sqerr = sqrt(modelo_sqerr$train.error),
+                                valida_sqerr = sqrt(modelo_sqerr$valid.error),
+                                entrena_absloss = sqrt(modelo_absloss$train.error),
+                                valida_absloss = sqrt(modelo_absloss$valid.error),
+                                n_arbol = 1:length(modelo_absloss$train.error)) %>%
+                      gather(tipo, valor, -n_arbol)
+ggplot(dat_entrenamiento, aes(x=n_arbol, y=valor, colour=tipo, group=tipo)) +
+  geom_line()
+```
+
+- Explica teóricamente cuál es la diferencia del algoritmo cuando utilizas estas
+dos pérdidas.
+
+    _De acuerdo a lo visto en clase, cito el texto de la sesión 12:_
+    
+    > Pérdida cuadrática: $L(y,f(x))=(y-f(x))^2$, $\frac{\partial L}{\partial z} = -2(y-f(x))$.
+    
+    > Pérdida absoluta (*más robusta a atípicos que la cuadrática*) $L(y,f(x))=|y-f(x)|$, $\frac{\partial L}{\partial z} = signo(y-f(x))$.
+    
+    _Yo, de manera intuitiva, puedo decir que los exponentes agudizan la pérdida, pero desconozco la razón que sustente este argumento, más allá de que la derivada parcial tiene un coeficiente `-2`._
+
+- Da razones por las que pérdida absoluta puede ser una mejor selección para
+algunos problemas de regresión.
+
+    _Como lo mencioné anteriormente, pienso que puede ser viable, siempre y cuando no implique derivar, aunque como cité en el punto anterior sí se pueden hacer derivadas asignando un signo._
+    
+    _Destacaría que sería relevante hacer en estos casos la prueba basándome en una gráfica que compare, como lo hice anteriormente. Ahí se puede apreciar a simple vista._
+    
