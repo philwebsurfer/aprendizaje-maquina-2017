@@ -51,12 +51,12 @@ normalizar <- function(x){
   }
   x_norm
 }
-u_norm <- normalizar(u)
-v_norm <- normalizar(v)
+u_norm <- (u)
+v_norm <- (v)
 u_norm
 v_norm
 sigma = 10
-X_1 <- tcrossprod(u_norm, v_norm)
+X_1 <- sigma*tcrossprod(u_norm, v_norm)
 X_1
 ```
 
@@ -145,7 +145,7 @@ son muy similares. Calcula la distancia Frobenius entre la aproximación de rang
 1 - (sum(X_1^2) - sum(svd_1$d[3]^2))/sum(X_1^2)
 ```
 
-_Efectivamente, compare los valores en gedit/notepad para ver los rangos, en base a lo comentado en la pregunta 3, además de las distancias mencionadas anteriormente con las distancias de Frobenius donde **el rango 1 `Lo que indica que capturamos` 84.46%** `de la información` $\therefore$ la mejor opción es 1._
+_Efectivamente, compare los valores en gedit/notepad para ver los rangos, en base a lo comentado en la pregunta 3, además de las distancias mencionadas anteriormente con las distancias de Frobenius donde **el rango 1 `Lo que indica que capturamos` 99.99%** `de la información` $\therefore$ la mejor opción es 1._
 
 <pre>
 u_norm = 0.0000000 0.1474420 0.2948839 0.5897678 0.7372098
