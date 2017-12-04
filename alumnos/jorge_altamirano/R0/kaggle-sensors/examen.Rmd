@@ -1,0 +1,106 @@
+---
+title: "Examen Kaggle Sensors - Jorge Altamirano"
+output: html_notebook
+---
+
+_175904 - Jorge III Altamirano Astorga_
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(readr)
+library(glmnet)
+```
+
+Leer los datos
+
+```{r}
+entrena <- read_csv("data/entrena.csv")
+summary(entrena)
+entrena
+```
+
+```{r}
+prueba <- read_csv("data/prueba.csv")
+summary(prueba)
+prueba
+```
+
+### Modelo 
+
+```{r}
+entrena_clean <- entrena
+# entrena_clean[,15] <- sapply(entrena_clean[,15], as.factor)
+# entrena_clean[,16] <- sapply(entrena_clean[,16], as.factor)
+# entrena_clean[,17] <- sapply(entrena_clean[,17], as.factor)
+summary(entrena_clean)
+lasso15 <- cv.glmnet(x = entrena_clean[,2:14] %>% as.matrix, 
+                     y = entrena_clean$cocina_pir, 
+                     alpha = 1)
+plot(lasso15)
+```
+
+```{r}
+lasso16 <- cv.glmnet(x = entrena_clean[,2:14] %>% as.matrix, 
+                     y = entrena_clean[,16] %>% as.matrix, 
+                     alpha = 1)
+plot(lasso16)
+```
+
+```{r}
+lasso17 <- cv.glmnet(x = entrena_clean[,2:14] %>% as.matrix, 
+                     y = entrena_clean[,17] %>% as.matrix, 
+                     alpha = 1)
+plot(lasso16)
+```
+
+```{r}
+pred_15 <- predict(lasso15, entrena_clean[,2:14] %>% as.matrix, s = "lambda.1se") 
+sqrt(mean((pred_15[,1] - entrena_clean[15])^2))
+```
+
+```{r}
+pred_16 <- predict(lasso16, entrena_clean[,2:14] %>% as.matrix, s = "lambda.1se") 
+sqrt(mean((pred_16[,1] - entrena_clean[16])^2))
+```
+
+```{r}
+pred_17 <- predict(lasso17, entrena_clean[,2:14] %>% as.matrix, s = "lambda.1se") 
+sqrt(mean((pred_17[,1] - entrena_clean[17])^2))
+```
+
+```{r}
+names(entrena_clean[,2:14])
+names(prueba[,1:13])
+prueba_submission <- data.frame(id = prueba$id)
+lasso15 <- cv.glmnet(x = entrena_clean[,2:14] %>% as.matrix, 
+                     y = entrena_clean$cocina_pir %>% as.factor, 
+                     family = "binomial",
+                     alpha = 1)
+lasso16 <- cv.glmnet(x = entrena_clean[,2:14] %>% as.matrix, 
+                     y = entrena_clean$sala_pir %>% as.factor, 
+                     family = "binomial",
+                     alpha = 1)
+lasso17 <- cv.glmnet(x = entrena_clean[,2:14] %>% as.matrix, 
+                     y = entrena_clean$sala_pir %>% as.factor, 
+                     family = "binomial",
+                     alpha = 1)
+prueba_submission$cocina_pir <- predict(lasso15, 
+                                        newx = prueba[,1:13] %>% as.matrix, 
+                                        type = "response",
+                                        s = "lambda.min")[,1]
+prueba_submission$sala_pir <- predict(lasso16, 
+                                      newx = prueba[,1:13] %>% as.matrix, 
+                                      type = "response",
+                                      s = "lambda.1se")[,1]
+prueba_submission$estudiof_pir <- predict(lasso17, 
+                                          newx = prueba[,1:13] %>% as.matrix, 
+                                          type = "response",
+                                          s = "lambda.1se")[,1]
+summary(prueba_submission)
+```
+
+```{r}
+write_csv(prueba_submission, "data/submission.csv")
+```
+
