@@ -1,0 +1,38 @@
+---
+title: "Examen Final"
+output: html_notebook
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(jsonlite)
+```
+
+```{r}
+train <- fromJSON("data/train.json") 
+train <- train %>% as.data.frame
+# test <- fromJSON("data/test.json") %>% as.data.frame
+# nrow(test)
+train$cuisine <- train$cuisine %>% as.factor
+train_2 <- train %>% arrange(id)
+train_2 %>% spread(key = ingredients, value = "i")
+# train_2[1:5,3] %>% sapply(, function(x){ unlist(x)})
+# head(train)
+length(train_2)
+write_csv(train_2, "data/train.csv")
+```
+
+```{r}
+ingredients <- train_2$ingredients %>% 
+  unlist %>% 
+  tolower %>%
+  gsub("[^ a-z]", "", ., perl = T, ignore.case = T) %>% 
+  gsub("^\\s+", "", ., perl = T, ignore.case = T) %>% 
+  unique %>%
+  data.frame(x=.) %>%
+  arrange(x)
+levels(train_2$cuisine)
+nrow(train_2)
+train_2[1:4,3] %>% unlist(recursive = F)
+```
+

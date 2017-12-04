@@ -1,0 +1,102 @@
+Presentación Examen Final
+========================================================
+author: Jorge III Altamirano Astorga (175904) Uriel Miranda Miñon (177508)
+font-family: 'Helvetica'
+transition: fade
+date: 2017/12/02
+
+## What's Cooking 
+### Dataset by Yummly
+
+Objetivo
+========================================================
+
+Determinar en base a los ingredientes el tipo de cocina a la que pertenece un platillo.
+
+Existen alrededor más de 6,000 ingredients en el dataset de entrenamiento (unclean):
++ Con 39,774 observaciones para el set de entrenamiento
++ Clasificados en 20 tipos de cocinas: mexicana, francesa, tailandesa, ...
+
+Para el set de prueba son 9,944 observaciones.
+
+Dentro de Aprendizaje Máquina éste es un problema de Aprendizaje Supervisado y de Clasificación.
+
+Datos 1 de 3
+========================================================
+
+Los datos están en formato JSON, con una lista anidada y el ID en desorden como se muestra aquí.
+
+<style>
+div.slideContent pre code.r {
+  font-size: 1.0em;
+}
+</style>
+
+```{r include=FALSE}
+library(tidyverse)
+library(jsonlite)
+library(knitr)
+opts_chunk$set(cache=TRUE)
+```
+```{r, cache=TRUE, results='markdown'}
+train <- fromJSON("data/train.json") 
+train <- train %>% as.data.frame
+train %>% head(n=4) %>% kable
+```
+
+Datos 2 de 3
+========================================================
+left: 60%
+Los datos van a requerir algo de limpieza, como es usual: 
+  + Existen ingredientes repetidos, dado que contienen cantidades o porcentajes
+  + Existen ingredientes repetidos con caracteres especiales o acentuados 
+  + Consideramos más conveniente convertir a minúsculas
+  
+***
+```{r, cache=TRUE, results='markdown'}
+train$ingredients %>% unlist %>%  tolower %>%unique %>% data.frame(x=.) %>% arrange(x) %>%  head(n=10) %>% kable
+```
+
+Datos 3 de 3
+========================================================
+left: 30%
+Data summary después de una breve limpieza, aún así requerimos trabajar en:
++ Separar la lista de ingredientes: se nos ocurre hacer una variable por cada ingrediente (los +6,000)
++ Dichas 6,000 variables serán nuestras $x$ y nuestra $y$ (objetivo) será `cuisine`
++ También requiere cambiar los espacios (" ") por "`_`" en dichas variables
+
+```{r warning=FALSE, echo=FALSE}
+train$cuisine <- train$cuisine %>% as.factor
+train <- train %>% arrange(id)
+train[1:3, ] %>% kable
+```
+
+Métodos
+========================================================
+
+Pretendemos utilizar los siguientes métodos:
+
+## **#1 Support Vector Machine: Multi-class classification**
+
+Dado que es un método que nos pareció:
+
+1. Con potencial para este problema
+2. Tomando su sugerencia de usar un método no visto en clase
+
+**#2 Regresión Lineal con Lasso:**  Por su simplicidad e interpretabilidad.
+
+**#3 Bosques Aleatorios:**  Por los buenos resultados que tiene _out of the box_.
+
+Bibliografía
+========================================================
+
+* [Aprendizaje Máquina - Luis Felipe González](https://felipegonzalez.github.io/aprendizaje-maquina-2017/)
+* [kaggle.com/What's cooking](https://www.kaggle.com/c/whats-cooking/data)
+* [R SVM @R-Project's Cran](https://cran.r-project.org/web/packages/e1071/vignettes/svmdoc.pdf)
+
+Fin
+========================================================
+
+### <div style="text-align: center;">Q&A</div>
+
+## <div style="height: 50px; margin: 0 auto; text-align: center;">¡Muchas gracias!</div>
