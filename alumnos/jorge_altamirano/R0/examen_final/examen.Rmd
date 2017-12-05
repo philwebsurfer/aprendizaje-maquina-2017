@@ -16,21 +16,32 @@ train <- train %>% as.data.frame
 train$cuisine <- train$cuisine %>% as.factor
 train_2 <- train %>% arrange(id)
 train_2 %>% spread(key = ingredients, value = "i")
-# train_2[1:5,3] %>% sapply(, function(x){ unlist(x)})
-# head(train)
-length(train_2)
-write_csv(train_2, "data/train.csv")
+train_2 %>% unnest %>% group_by(ingredients) %>% summarise(n = n()) %>% arrange(desc(n))
 ```
 
 ```{r}
+# train_2[1:5,3] %>% sapply(, function(x){ unlist(x)})
+unimportant_words <- "(^a taste of|any|low-fat|all|powder|baby|bertolli|boiled|boiling|bone in|whole|boneless|bottled|sauvignon|california|campbells condensed|canned|chopped|flavored carbonated beverage|cold|condensed|cooked|cooking|cereal|lowfat|frosting|spread|soften|with chives.*|ic peach| of .*|creamed|creamy| mexican.?|crushed|crystal farms|shredded|crystallized|crystal hot|cubed|curly|curlyleaf|jelly|dessert mix|sauce mix|mix|dark|dellallo|deepfried|deep fried|diced|diet|tortilla chips||domino|dried|minced|dry|earth balance|elmlea|^english|evaporated|everglades|extra fine|extra firm|extra large|extra\\s?lean|extra light|extra sharp|extra\\s?virgin|extra wide|^fat|fat\\s?free|fat skimmed|fatfree?|fattrimmed|fine|firm|firmly packed|flat |^flavored|terrine|food|free\\s?range|^french|^fresh| root|^fresno|^fried|^frozen|^fuji|full\\s?fat|gluten\\s?free|s milk |^gold|golden|gourmet|graham|granulated|grassfed|grated|grating|gravenstein|great|greater|style|green|grilled|grill|ground|half|heavy|heinz|hellmanns?|of the woods|herbed |herdez|hidden valley|homemade|^hot |hot smoked|hot spanish|^hungarian|hurst|i cantbelieve? its? not butter|imitation|imperial sugar light brown|instant |^irish|^italian|italianstyle|^japanese |jimmy dean|johnsonville|jose cuervo|jumbo|kikkoman|knorr|knudsen|kraft|mexican style|kraft zesty|slim cut|sun dried|shredded|la victoria|land o lakes|^large|^lean|leftover|leg of|zest|less sodium|lesser|leaves|^light|cook and drain|lipton|liquid |^lite|^long |loosely packed fresh|low fat|lowfat|^low sodium|lower sodium|lowfat|baked|\\sdeli|firm silken|styl|lowsodium|and cheese dinner|madagascar bourbon|extract|mccormick|^medium|uncook|uncooked|merguez|^mexican|minced|mini|mini|mixed|mixture|mizkan|^mms|mrs dash|natural|^nido|non dairy|non fat|non stick|nondairy|nonfat|frozen|nonhydrogenated|nosaltadded|old el paso|old|old\\s?fashioned|cooking spray|flavored|^organic|oscar mayer|other|oven\\s?ready|flavor|flavour|paella|reggiano|peeled|^petite|pillsbury|powdered|prepared|preserv|preserved|progresso|\\sdi\\sparma|pt|pte|puff|puffed|pure|quickcooking|quick|cooking|raw|red|reduced\\sfat|reduced\\ssodium|reduced\\ssugar|reducedfat|reducedsodium|reducedsugar|refrigerated|regular|rich|roasted|roast|roasting|robert mondavi|salt free seasoning|salt free chili powder|salt free cajun creole seasoning|salt free southwest chipotle seasoning|salt free herb seasoning|salt free chili powder|salted|saltines?|saltpeper|san marazano|sargento|links|casings|savoy|seafood|seasoned|seasoning|seedless|self\\s?ra?ising|shredded|single|simple|skinless|sliced|small|smoked|sodium free|sodium reduced|soft|softened|solid|southern comfort.*|southwest|sparkling|spicy|splenda.*|split|spring water|^strip|superfine|sweetened|taco bell.*|into serving pieces|to\\s+lb|toasted|uncle bens|^uncook|^uncooked|unflavou?red|unsweetened|white|wholesome sweeteners|wholemilk|wide|^wild|^winter|wish\\s?bone|yellow|young|zesty|italian|all purpose|puree|juice|aged|tuna in water|liqueur|liquor|^asian|and .*|yoplait)(\\s|$)"
 ingredients <- train_2$ingredients %>% 
   unlist %>% 
   tolower %>%
+  gsub("\\([^)]*\\)", "", ., perl = T, ignore.case = T) %>%
   gsub("[^ a-z]", "", ., perl = T, ignore.case = T) %>% 
   gsub("^\\s+", "", ., perl = T, ignore.case = T) %>% 
+  gsub(unimportant_words, " ", ., perl = T, ignore.case = T) %>%
+  gsub("\\s+", " ", ., perl = T, ignore.case = T) %>%
+  gsub("^\\s+", "", ., perl = T, ignore.case = T) %>%
+  # gsub(unimportant_words, " ", ., perl = T, ignore.case = T) %>%
+  # gsub("\\s+", " ", ., perl = T, ignore.case = T) %>%
+  # gsub("^\\s+", "", ., perl = T, ignore.case = T) %>%
+  # gsub(unimportant_words, " ", ., perl = T, ignore.case = T) %>%
+  # gsub("\\s+", " ", ., perl = T, ignore.case = T) %>%
+  # gsub("^\\s+", "", ., perl = T, ignore.case = T) %>%
   unique %>%
   data.frame(x=.) %>%
   arrange(x)
+ingredients %>% filter(grepl("and ", x))
+write_csv(ingredients, "data/ingredients.csv")
 levels(train_2$cuisine)
 nrow(train_2)
 train_2[1:4,3] %>% unlist(recursive = F)
