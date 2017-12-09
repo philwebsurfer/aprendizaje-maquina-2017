@@ -320,6 +320,13 @@ valid_3 %>% mutate(svm_pred = (cuisine == svm)) %>% select(svm_pred) %>% summary
 valid_3 %>% select(cuisine, svm)
 ```
 
+#### Submission
+
+```{r}
+
+```
+
+
 ## Bibliografía
 
 * [ParallelSVM](https://cran.r-project.org/web/packages/parallelSVM/parallelSVM.pdf)

@@ -10,6 +10,7 @@ _175904 - Jorge III Altamirano Astorga_
 library(tidyverse)
 library(readr)
 library(glmnet)
+library(xgboost)
 ```
 
 Leer los datos
@@ -103,4 +104,29 @@ summary(prueba_submission)
 ```{r}
 write_csv(prueba_submission, "data/submission.csv")
 ```
+
+```{r}
+xgb15 <- xgboost(data = entrena_clean[,2:14] %>% as.matrix,
+                 label = entrena_clean$cocina_pir,
+                 nrounds = 5, nthread = 3)
+xgb16 <- xgboost(data = entrena_clean[,2:14] %>% as.matrix, 
+                 label = entrena_clean$sala_pir,
+                 nrounds = 5, nthread = 3)
+xgb17 <- xgboost(data = entrena_clean[,2:14] %>% as.matrix, 
+                 label = entrena_clean$estudiof_pir,
+                 nrounds = 5, nthread = 3)
+```
+
+```{r}
+prueba_xgb <- data.frame(id = prueba$id)
+prueba_xgb$cocina_pir <- predict(xgb15, 
+                                 prueba[,1:13] %>% as.matrix)
+prueba_xgb$sala_pir <- predict(xgb16, 
+                                 prueba[,1:13] %>% as.matrix)
+prueba_xgb$estudiof_pir <- predict(xgb17, 
+                                 prueba[,1:13] %>% as.matrix)
+write_csv(prueba_xgb, "data/xgb.csv")
+summary(prueba_xgb)
+```
+
 
