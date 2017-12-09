@@ -71,18 +71,6 @@ train <- train %>% arrange(id)
 train[1:3, ] %>% kable
 ```
 
-Datos 3 de 3
-========================================================
-
-Antes
-
-![](data/datosunclean.jpg)
-
-Después
-
-![](data/datosclean.jpg)
-
-
 Métodos
 ========================================================
 

@@ -93,18 +93,6 @@ Data summary después de una breve limpieza, aún así requerimos trabajar en:
 |  1|mexican |tomatoes, diced red onions, paprika, salt, corn tortillas, fresh cilantro, cremini, vegetable broth, freshly ground pepper, ground chipotle chile pepper, bell pepper, extra-virgin olive oil, yellow onion, ground cumin, poblano peppers, chili powder, garlic, pinto beans |
 |  2|french  |chicken broth, truffles, pimentos, green pepper, olives, roast turkey, egg yolks, heavy cream, tarragon leaves, eggs, flour, butter, scallions, cold water, unflavored gelatin, leeks, salt, aspic                                                                            |
 
-Datos 3 de 3
-========================================================
-
-Antes
-
-![](data/datosunclean.jpg)
-
-Después
-
-![](data/datosclean.jpg)
-
-
 Métodos
 ========================================================
 
