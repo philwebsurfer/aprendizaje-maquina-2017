@@ -11,11 +11,12 @@ date: 2017/12/02
 Objetivo
 ========================================================
 
+(Ganar la competencia de Kaggle o tener un buen lugar)
 Determinar en base a los ingredientes el tipo de cocina a la que pertenece un platillo.
 
-Existen alrededor más de 6,000 ingredients en el dataset de entrenamiento (unclean):
+Existen alrededor más de 6,000 ingredients en el dataset de entrenamiento (raw):
 + Con 39,774 observaciones para el set de entrenamiento
-+ Clasificados en 20 tipos de cocinas: mexicana, francesa, tailandesa, ...
++ Clasificados en 20 tipos de cocinas: mexicana, francesa, griega, ...
 
 Para el set de prueba son 9,944 observaciones.
 

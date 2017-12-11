@@ -21,6 +21,7 @@ library(doParallel)
 registerDoParallel(cores=detectCores()-1)
 library(parallelSVM)
 ```
+
 # {.tabset}
 
 ## Load 
@@ -323,8 +324,47 @@ valid_3 %>% select(cuisine, svm)
 #### Submission
 
 ```{r}
-
+test_raw <- fromJSON("data/test.json") 
+test_raw <- test_raw %>% as.data.frame
+test <- test_raw
+# test_raw$ingredients %>% unlist
+test$ingredients <- sapply(1:nrow(test_raw), function(x) {
+  test[x,2] %>% 
+    unlist %>%
+    tolower %>%
+    gsub("\\([^)]*\\)", "", ., perl = T, ignore.case = T) %>%
+    gsub("[^ a-z]", "", ., perl = T, ignore.case = T) %>%
+    gsub("^\\s+", " ", ., perl = T, ignore.case = T) %>%
+    gsub(unimportant_words, " ", ., perl = T, ignore.case = T) %>%
+    gsub("\\s+", " ", ., perl = T, ignore.case = T) %>%
+    unique %>%
+    trimws %>%
+    gsub("\\s", "_", ., perl = T, ignore.case = T) %>%
+    popular_words
+})
+test
 ```
+
+```{r}
+test_2 <- test[,1] %>% data_frame(id=.)
+#crea las columnas
+test_2[, ingredients_top$ingredients] <- 0
+#llena las columnas
+for(i in 1:nrow(test_2)){
+  test_2[i, which(names(test_2) %in% (test[i,]$ingredients %>% unlist))] <- 1
+}
+test_2
+```
+
+```{r, cache=TRUE}
+test_2$cuisine <- predict(svm, newdata = test_2[,1:209], type="class")
+test_2 %>% select(id,cuisine) %>% summary
+test_2 %>% select(id, cuisine) %>% write_csv(., "data/svm_submission.csv")
+```
+
+Kaggle Submission :-(
+
+![](data/kaggle-1.jpg)
 
 
 ## Bibliografía

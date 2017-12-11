@@ -1,0 +1,144 @@
+Presentación Examen Final
+========================================================
+author: Jorge III Altamirano Astorga (175904) Uriel Miranda Miñon (177508)
+font-family: 'Helvetica'
+transition: fade
+date: 2017/12/02
+
+## What's Cooking 
+### Dataset by Yummly
+
+Objetivo 
+========================================================
+
+(Ganar la competencia de Kaggle o tener un buen lugar)
+Determinar en base a los ingredientes el tipo de cocina a la que pertenece un platillo.
+
+Existen alrededor más de 6,000 ingredients en el dataset de entrenamiento (raw):
++ Con 39,774 observaciones para el set de entrenamiento
++ Clasificados en 20 tipos de cocinas: mexicana, francesa, griega, ...
+
+Para el set de prueba son 9,944 observaciones.
+
+Dentro de Aprendizaje Máquina éste es un problema de Aprendizaje Supervisado y de Clasificación.
+
+Datos 
+========================================================
+
+Los datos están en formato JSON, con una lista anidada y el ID en desorden como se muestra aquí.
+
+<style>
+div.slideContent pre code.r {
+  font-size: 1.0em;
+}
+</style>
+
+```{r include=FALSE}
+library(tidyverse)
+library(jsonlite)
+library(knitr)
+opts_chunk$set(cache=TRUE)
+```
+```{r, cache=TRUE, results='markdown'}
+train <- fromJSON("data/train.json") 
+train <- train %>% as.data.frame
+train %>% head(n=4) %>% kable
+```
+Datos: Limpieza 
+========================================================
+![](data/datosunclean.jpg)
+![](data/datosclean.jpg)
+Datos: Mucha Limpieza 
+========================================================
+left: 60%
+  + Existen ingredientes repetidos en las recetas y en esencia; incluían cosas como _minced_, _cubed_, _a taste of_, _oz_, _warm_, _hot_, _toasted_, _young_, _fresh_, ...
+  + Algunos caracteres se repetían por acentos o similares
+  + Algunos ingredientes tenían marcas: _Oscar Mayer_, _Kraft_, _Land O'Lakes_, ...
+  + Algunos contenían mayúsculas y minúsculas
+  
+***
+```{r, cache=TRUE, results='markdown'}
+train$ingredients %>% unlist %>%  tolower %>%unique %>% data.frame(x=.) %>% arrange(x) %>%  head(n=10) %>% kable
+```
+
+Datos: reducción de variables 
+========================================================
+-
++ Muchos ingredientes estaban mencionados pocas veces
+```{r, echo=FALSE}
+train_2 <- readRDS("data/train_2.rds")
+ggplot(train_2, aes(n_ing, group = cuisine)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count") + 
+    scale_y_continuous(labels=scales::percent) +
+    ylab("relative frequencies") +
+    facet_wrap(~cuisine)
+```
+
+***
+
+```{r, echo=FALSE}
+ingredients_count <- readRDS("data/ingredients_count.Rdata")
+ggplot(ingredients_count,aes(x=id, y=log(freq)))+geom_line() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+Datos: Por tipo cocina 
+========================================================
+Antes de aplicar cualquier modelo empezamos a intuir que podría costarle más trabajo aprender ciertos tipos que otros. Resultó cierto.
+```{r, echo=FALSE}
+ggplot((train_2$cuisine %>% plyr::count()), aes(x = reorder(x, -freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  xlab("Cuisine") +
+  ylab("Frecuencias") +
+  theme(axis.text.x=element_text(angle=90,hjust=1))
+```
+
+Métodos 
+========================================================
+-
+**#1 Support Vector Machine:** Dado que es un método que nos pareció: interesante y fue el que mejor funcionó. Además era no visto en clase.
+
+**#2 Bosques Aleatorios**
+
+**#3 Árboles:**
+
+***
+-
+-
+correctos |  train | val
+----------| --- | ---
+FALSE | 8762 | 4096 
+TRUE | 19079 | 7837
+-
+-
+-
+correctos |  train | val
+----------| --- | ---
+FALSE | 2681 | 3621 
+TRUE | 25160 | 8312 
+
+correctos |  train | val
+----------| --- | ---
+FALSE | 10294 | - 
+TRUE | 25160 | -
+
+Conclusiones 
+========================================================
+
+* Muchas de los datasets eran muy grandes, incluso este requería muchos recursos
+* Los datos y su limpieza muchas veces son una buena parte del trabajo
+* Se requiere de tener conocimiento del tema para poder aprovechar mejor esos datos
+* Nuestra herramienta más útil para la limpieza fueron los Regular Expressions
+
+Bibliografía 
+========================================================
+
+* [Aprendizaje Máquina - Luis Felipe González](https://felipegonzalez.github.io/aprendizaje-maquina-2017/)
+* [kaggle.com/What's cooking](https://www.kaggle.com/c/whats-cooking/data)
+* [R SVM @R-Project's Cran](https://cran.r-project.org/web/packages/e1071/vignettes/svmdoc.pdf)
+
+Fin 
+========================================================
+
+### <div style="text-align: center;">Q&A</div>
+
+## <div style="height: 50px; margin: 0 auto; text-align: center;">¡Muchas gracias!</div>
