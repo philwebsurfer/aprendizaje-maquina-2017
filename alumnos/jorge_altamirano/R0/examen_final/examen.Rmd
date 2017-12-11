@@ -20,6 +20,7 @@ library(randomForest)
 library(doParallel)
 registerDoParallel(cores=detectCores()-1)
 library(parallelSVM)
+library(gridExtra)
 ```
 
 # {.tabset}
@@ -220,33 +221,21 @@ ggplot((train_2$cuisine %>% plyr::count()), aes(x = reorder(x, -freq), y = freq)
   theme(axis.text.x=element_text(angle=90,hjust=1))
 ```
 
+### Ingredientes por cocina
+
+```{r}
+train_2 <- readRDS("data/train_2.rds")
+ingredients_count <- readRDS("data/ingredients_count.Rdata")
+ingredients_graph <- train_2 %>% 
+  unnest
+
+top_ing <- ingredients_count[(nrow(ingredients_count)-100):nrow(ingredients_count),]
+
+ggplot(ingredients_graph[ingredients_graph$ingredients %in% top_ing$ingredients,], aes(x = ingredients, fill = cuisine)) + geom_histogram(stat = "count" ) + theme(axis.text.x=element_text(angle=90,hjust=1))
+```
+
+
 ## Models {.tabset}
-
-### Lineal
-
-```{r, cache=TRUE}
-# lm <- glmnet(x = train_3[,3:100] %>% as.matrix, 
-#                 y = train_3$cuisine, 
-#                 family = "multinomial",
-#                 alpha = 1)
-```
-
-
-#### Entrenamiento
-
-```{r}
-# train_3$lm <- predict(arbol_grande, newdata = train_3[,3:210], type="class")
-# train_3 %>% mutate(lm_pred = (cuisine == lm)) %>% select(lm_pred) %>% summary
-# train_3 %>% select(cuisine, lm)
-```
-
-#### Validación
-
-```{r}
-# valid_3$lm <- predict(lm, newdata = valid_3[,3:210], type="class")
-# valid_3 %>% mutate(lm_pred = (cuisine == lm)) %>% select(lm_pred) %>% summary
-# valid_3 %>% select(cuisine, lm)
-```
 
 ### Árbol
 
@@ -287,6 +276,7 @@ train_3 %>% select(cuisine, bosque)
 #### Validación
 
 ```{r}
+load("data/bosque.Rdata")
 valid_3$bosque <- predict(bosque, newdata = valid_3[,3:210], type="class")
 valid_3 %>% mutate(bosque_pred = (cuisine == bosque)) %>% select(bosque_pred) %>% summary
 valid_3 %>% select(cuisine, bosque)
@@ -316,12 +306,36 @@ train_3 %>% select(cuisine, svm)
 #### Validación
 
 ```{r, cache=TRUE}
+# valid_3 <- readRDS("data/valid_3.rds")
+# load(file = "data/svm.Rdata")
 valid_3$svm <- predict(svm, newdata = valid_3[,3:210], type="class")
+valid_3$bosque <- predict(bosque, newdata = valid_3[,3:210], type="class")
 valid_3 %>% mutate(svm_pred = (cuisine == svm)) %>% select(svm_pred) %>% summary
 valid_3 %>% select(cuisine, svm)
 ```
 
-#### Submission
+### Comparación
+
+```{r}
+valid_3a <- valid_3%>%select(cuisine,svm,bosque)
+valid_3a <- valid_3a %>% group_by(cuisine) %>% mutate("bosque" = (cuisine == bosque))
+valid_3a <- valid_3a %>% group_by(cuisine) %>% mutate("svm" = (cuisine == svm))
+data_valid <- summarise(valid_3a, 
+                        bosque=mean(bosque), svm=mean(svm))
+g1 <- ggplot(data_valid , aes(x=reorder(cuisine, -bosque), y=bosque)) + 
+  geom_bar(stat="identity") + xlab("cuisine") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+g2 <- ggplot(data_valid , aes(x=reorder(cuisine, -svm), y=svm)) + 
+  geom_bar(stat="identity") + xlab("cuisine") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+grid.arrange(g1,g2)
+```
+
+```{r}
+glimpse(valid_3)
+```
+
+#### Kaggle Submission
 
 ```{r}
 test_raw <- fromJSON("data/test.json") 
