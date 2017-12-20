@@ -1,0 +1,649 @@
+---
+title: "Examen Final 177508 175904"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+_177508 - Uriel Miranda Miñón_
+
+_175904 - Jorge III Altamirano Astorga_
+
+
+```{r imports, include=FALSE}
+library(R2jags)
+library(tidyverse)
+library(gridExtra)
+```
+
+## 3.1 Bootstrap paramétrico.
+
+* Escribe la función de verosimilitud y calcula el estimador de máxima verosimilitud para $\sigma^2$. Supongamos que observamos los datos x (en la carpeta datos), ¿Cuál es tu estimación de la varianza? 
+
+Dada la verosimilitud:
+$$
+\mathcal{L}(\sigma^2|x_{0},x_{1}, ..., x_n)=
+\Pi_{0}^{n}p(\sigma^2)=\Pi_{k=0}^n\left[
+  \frac{1}{\sqrt{2\pi\sigma^2}}exp\left(-\frac{1}{2\sigma^2}(x-x_k)^2\right)
+\right]
+$$
+Log Verosimilitud sería:
+
+$$
+\mathcal{l}(\sigma^2)=\log \mathcal{L}(\sigma^2)=\sum \log p(\sigma^2)
+$$
+
+$$
+= log \left\{\Pi\left[
+\frac{1}{\sqrt{2\pi\sigma^2}}exp\left(-\frac{1}{2\sigma^2}(x-x_k)^2\right)
+\right]
+\right\} 
+= \sum_{k=0}^n log\left\{
+\left[
+\frac{1}{\sqrt{2\pi\sigma^2}}exp\left(-\frac{1}{2\sigma^2}(x-x_k)^2\right)
+\right]\right\} 
+$$
+
+por leyes de los logaritmos...
+
+$$
+= \sum_{k=0}^n \left[
+  log \left(
+    \frac{1}{\sqrt{2\pi\sigma^2}}
+  \right)-
+  \left(\frac{1}{2\sigma^2}(x-x_k)^2\right)
+\right]
+= 
+  -n\ log \sqrt{2\pi\sigma^2} - 
+  \sum_{k=0}^n \left[
+    \frac{1}{2\sigma^2}(x-x_k)^2
+  \right]
+=
+  -n\ log \sqrt{2\pi\sigma^2} - 
+  \frac{1}{2\sigma^2}
+    \sum_{k=0}^n 
+      (x-x_k)^2
+$$
+$$
+=-\frac{n}{2} \ \left(log\ 2\pi + log\ \sigma^2\right) -
+\frac{1}{2\sigma^2}
+  \sum_{k=0}^n 
+    (x-x_k)^2
+$$
+
+Si lo derivamos...
+
+$$
+\frac{\partial{\mathcal{l}}}{\partial{\sigma^2}} =
+  -n\ \sigma^2 +  
+  \sum_{k=0}^n 
+    (x-x_k)^2 = 0
+$$
+Despejando...
+$$
+\sigma^2 = \frac{\sum_{k=0}^n 
+    (x-x_k)^2}
+    {n} =
+ \frac{\sum_{k=0}^n 
+    (-x_k)^2}
+    {n}
+$$
+
+*Función de máxima verosimilitud*
+
+```{r verosimilitud}
+load("data_est_comp/x.RData")
+load("data_est_comp/rabbits.RData")
+sigma_mv <-function(n,x) sum(x^2)/n
+n <- length(x)
+paste0("n=",n)
+```
+
+*Estimación de varianza*
+
+$$\sigma^2=131.291$$
+
+```{r varianza}
+varianza <- sigma_mv(n,x)
+varianza
+```
+
+* Aproxima el error estándar de la estimación usando bootstrap paramétrico y realiza un histograma de las replicaciones bootstrap.
+
+_error = 0.6480146_
+
+```{r theta_hat}
+sigma_hat <- varianza
+mu <- 0
+
+set.seed(175904)
+thetaBoot <- function(){
+    # Simular X_1*,...X_N* con distribución N(mu_hat, sigma_hat^2) 
+    x_boot <- rnorm(n, mean = 0, sd = sqrt(sigma_hat)) 
+    # Calcular sigma* 
+    mu_boot <- mu
+    (1 / n * sum((x_boot - mu_boot)^2)) 
+}
+
+sims_boot <- rerun(3000, thetaBoot()) %>% flatten_dbl()
+ERR <- sqrt(1 / 2999 * sum((sims_boot - mean(sigma_hat)) ^ 2))
+ERR
+```
+
+```{r histograma boot}
+hist(sims_boot)
+```
+
+
+## 3.2 Análisis bayesiano
+
+* Continuamos con el problema de hacer inferencia de $\sigma^2$. Comienza especificando una inicial Gamma Inversa, justifica tu elección de los parámetros de la distribución inicial y grafica la función de densidad.
+
+_Justificamos que utilizamos los parámetros $\alpha=800, \beta=14$ debido a la gráfica del punto anterior. Dado que deseamos tener una función Gamma que aproxime dicha forma._
+
+```{r}
+x_gamma <- rgamma(2000, shape = 800, rate = 14)
+x_igamma <- (1 / x_gamma) %>% as.data.frame()
+x_gamma %>% summary
+x_igamma %>% summary
+ggplot(x_igamma, aes(x = x_igamma)) +
+  geom_histogram(aes(y = ..density..))
+```
+
+* Calcula analíticamente la distribución posterior.
+
+$$
+p(\theta|x) \propto p(x|\theta) p(\theta) = 
+\frac{1}{(\sigma^2)^{N/2}}
+exp\bigg(-\frac{1}{2\sigma^2}\sum_{i=1}^N (x_i-\mu)^2 \bigg)
+exp\bigg(-\frac{1}{2\tau^2}(\mu-m)^2)\bigg) 
+\frac{1}{(\sigma^2)^{\alpha +1}}
+exp\bigg(-\frac{\beta}{\sigma^2}\bigg)
+$$ 
+  
+i.e.
+
+$$
+\sigma^2|\mu,x \sim GI\left(\frac{N}{2} + \alpha, \sum_{i=1}^n \frac{(x_i-\mu)^2}{2} + \beta \right)
+$$
+
+$$
+(11.45823|0,x) \sim GI\left(\frac{150}{2} + 800, \sum_{i=1}^n \frac{(x_i-0)^2}{2} + 14 \right)
+$$
+
+* Realiza un histograma de simulaciones de la distribución posterior y calcula el error estándar de la distribución.
+
+$error_{std} = 14.86156$
+
+```{r histograma de la posterior}
+xb_gamma <- rgamma(2000,shape = (n/2)+3,rate = sum(x^2)/2+3)
+xb_igamma <- (1 / xb_gamma) %>% as.data.frame()
+
+ggplot(xb_igamma, aes(x = xb_igamma)) +
+  geom_histogram(aes(y = ..density..)) +
+  geom_vline(xintercept = mean(xb_igamma$., na.rm = T))
+```
+
+```{r err posterior}
+ERR_2 <- sqrt(1 / 2000 * sum((xb_igamma - sigma_hat) ^ 2))
+ERR_2
+```
+
+Ajuste con una cadena de Markov.
+
+```{r jags1}
+modelo_normal.txt <-
+  '
+model{
+  for(i in 1:N){
+    x[i] ~ dnorm(0, nu)
+  }
+  # iniciales
+  sigma ~ dunif(.1, 300)
+  nu <- 1 / sigma
+  mu <-0
+}
+'
+cat(modelo_normal.txt, file = 'modelo_normal.bugs')
+# Ajustamos el Modelo (Generamos una Cadena de Markov)
+jags_fit <- jags(
+  model.file = "modelo_normal.bugs",    # modelo de JAGS
+ # inits = jags.inits,valores iniciales
+  data = list(x = x, N = n),    # lista con los datos
+  parameters.to.save = c("mu", "sigma", "nu"),  # parámetros por guardar
+  n.chains = 1,   # número de cadenas
+  n.iter = 10000,    # número de pasos
+  n.burnin = 1000,   # calentamiento de la cadena
+  n.thin = 1
+)
+jags_fit
+```
+
+```{r traceplot jags1}
+traceplot(jags_fit, varname = c("sigma"), ask = F)
+```
+
+
+```{r posterior jags1}
+sigma <- jags_fit$BUGSoutput$sims.matrix[, 4] %>% data.frame
+ggplot(sigma, aes(x = sigma)) +
+  geom_histogram(aes(y = ..density..))
+ERR_3 <- sqrt(1 / 9000 * sum((sigma - sigma_hat) ^ 2))
+ERR_3
+```
+
+## 3.3 Supongamos que ahora buscamos hacer inferencia del parámetro $\tau=log(\sigma)$, ¿cuál es el estimador de máxima verosimilitud?
+
+$$
+\tau = 4.877416
+$$
+
+
+```{r log sigma_hat}
+T <- log(sqrt(sigma_hat))
+T
+```
+
+* Utiliza bootstrap paramétrico para generar un intervalo de confianza del 95% para el parámetro $\tau$ y realiza un histograma de las replicaciones bootstrap.
+
+_2.5% es 2.31689_
+
+_97.5% es 2.542669_
+
+```{r sigma_hat bootstrap param}
+mu <-0 
+sigma_hat <- sqrt(1 / n * sum((x - mu) ^ 2))
+mu
+sigma_hat
+
+thetaBoot_log <- function(){
+    # Simular X_1*,...X_N* con distribución N(mu_hat, sigma_hat^2) 
+    x_boot <- rnorm(n, mean = mu, sd = sigma_hat) 
+    # Calcular sigma* 
+    mu_boot <- mean(x_boot)
+    sigma_boot <- sqrt(1 / n * sum((x_boot - mu_boot) ^ 2)) 
+    log(sigma_boot)
+}
+
+sims_boot_log <- rerun(3000, thetaBoot_log()) %>% flatten_dbl()
+log_inf <- quantile(sims_boot_log, 0.025)
+log_sup <- quantile(sims_boot_log, 0.975)
+log_inf
+log_sup
+
+sims_boot_log <- sims_boot_log %>% data.frame
+ggplot(sims_boot_log, aes(x = sims_boot_log)) +
+  geom_histogram(aes(y = ..density..)) + 
+  geom_vline(xintercept = log_inf, color = "red") +
+  geom_vline(xintercept = log_sup, color = "red")
+```
+
+* Ahora volvamos a inferencia bayesiana, calcula un intervalo de confianza para $\tau$ y un histograma de la distribución posterior de $\tau$ utilizando la inicial uniforme (para $\sigma^2$).
+
+```{r jags_theta}
+modelo_teta.txt <-
+  '
+model{
+  for(i in 1:N){
+    x[i] ~ dnorm(0, nu)
+  }
+  # iniciales
+  sigma ~ dunif(.1, 300)
+  nu <- 1 / sigma
+  mu <-0
+  teta <- log(sqrt(sigma))
+}
+'
+cat(modelo_teta.txt, file = 'modelo_normal_log.bugs')
+
+# Ajustamos el Modelo (Generamos una Cadena de Markov)
+jags_fit_teta <- jags(
+  model.file = "modelo_normal_log.bugs",    # modelo de JAGS
+ # inits = jags.inits,   # valores iniciales
+  data = list(x = x, N = n),    # lista con los datos
+  parameters.to.save = c("mu", "sigma", "teta"),  # parámetros por guardar
+  n.chains = 1,   # número de cadenas
+  n.iter = 10000,    # número de pasos
+  n.burnin = 1000,   # calentamiento de la cadena
+  n.thin = 1
+)
+jags_fit_teta
+```
+
+```{r jags_theta sup}
+teta_mc <- jags_fit_teta$BUGSoutput$sims.matrix[,4]
+teta_inf <- quantile(teta_mc, 0.025)
+teta_sup <- quantile(teta_mc, 0.975)
+teta_inf
+teta_sup
+
+teta_mc <- teta_mc %>% data.frame
+ggplot(teta_mc, aes(x = teta_mc)) +
+  geom_histogram(aes(y = ..density..)) + 
+  geom_vline(xintercept = teta_inf, color = "red") +
+  geom_vline(xintercept = teta_sup, color = "red")
+```
+
+
+## 4. Metrópolis
+
+En la tarea de Análisis Bayesiano (respuestas aquí programaste un algoritmo de Metropolis para el caso Normal con varianza conocida. En el ejercicio de la tarea los saltos se proponían de acuerdo a una distribución normal: N(0, 5). Para este ejercicio modifica el código con el fin de calcular el porcentaje de valores rechazados y considera las siguientes distribuciones propuesta: a) N(0,0.2), b) N(0,5) y c) N(0,20).
+
+* 4.1 Genera valores de la distribución posterior usando cada una de las distribuciones propuesta, utiliza la misma distribución inicial y datos observados que utilizaste en la tarea (realiza 6000 pasos). Grafica los primeros 2000 pasos de la cadena. Comenta acerca de las similitudes/diferencias entre las gráficas.
+
+_Claramente entre el segundo parámetro de N sea más grande, en el código `sd_prop` hay más distancia (varianza) entre los pasos. Por lo que se ven mucho más espaciados entre paso y paso. 0.2 se ve casí como una "mancha", mientra 5 y 20 se ven distanciados._
+
+```{r metropolis prior func}
+prior <- function(mu = 100, tau = 10){
+  mu <- mu
+  tau <- tau
+  function(theta){
+    dnorm(theta, mu, tau)
+  }
+}
+mu <- 150
+tau <- 15
+mi_prior <- prior(mu, tau)
+# mu
+# tau
+# mi_prior(5)
+# S: sum x_i, S2: sum x_i^2, N: número obs., sigma: desviación estándar (conocida)
+S <- 13000
+S2 <- 1700000
+N <- 100
+sigma <- 20
+likeNorm <- function(S, S2, N, sigma = sigma){
+  # quitamos constantes
+  sigma2 <-  sigma ^ 2
+  function(theta){
+    exp(-1 / (2 * sigma2) * (S2 - 2 * theta * S + 
+        N * theta ^ 2))
+  }
+}
+mi_like <- likeNorm(S = S, S2 = S2, N = N, sigma = sigma)
+# mi_like(130)
+postRelProb <- function(theta){
+  mi_like(theta) * mi_prior(theta)
+}
+caminaAleat <- function(theta, sd_prop = .2){ # theta: valor actual
+  salto_prop <- rnorm(n = 1, sd = sd_prop) # salto propuesto
+  theta_prop <- theta + salto_prop # theta propuesta
+  u <- runif(1) 
+  p_move = min(postRelProb(theta_prop) / postRelProb(theta), 1) # prob mover
+  if(p_move  > u){
+    return(theta_prop) # aceptar valor propuesto
+  }
+  else{
+    return(theta) # rechazar
+  }
+}
+
+### 0.2
+# Generamos la caminata aleatoria
+pasos <- 6000
+camino <- numeric(pasos) # vector que guardará las simulaciones
+camino[1] <- 90 # valor inicial
+rechazo = 0
+
+for (j in 2:pasos){
+  camino[j] <- caminaAleat(camino[j - 1])
+  rechazo <- rechazo + 1 * (camino[j] == camino[j - 1]) 
+}
+
+rp0.2 <- rechazo / pasos
+caminata0.2 <- data.frame(pasos = 1:pasos, theta = camino)
+g1 <- ggplot(caminata0.2[1:2000, ], aes(x = pasos, y = theta)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) +
+  ggtitle("N(0, 0.2)")
+
+#### 5
+# Generamos la caminata aleatoria
+pasos <- 6000
+camino <- numeric(pasos) # vector que guardará las simulaciones
+camino[1] <- 90 # valor inicial
+rechazo = 0
+
+for (j in 2:pasos){
+  camino[j] <- caminaAleat(camino[j - 1], sd_prop = 5)
+  rechazo <- rechazo + 1 * (camino[j] == camino[j - 1]) 
+}
+
+rp5 <- rechazo / pasos
+caminata5 <- data.frame(pasos = 1:pasos, theta = camino)
+g2 <- ggplot(caminata5[1:2000, ], aes(x = pasos, y = theta)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) +
+  ggtitle("N(0, 5)")
+
+#### 20
+# Generamos la caminata aleatoria
+pasos <- 6000
+camino <- numeric(pasos) # vector que guardará las simulaciones
+camino[1] <- 90 # valor inicial
+rechazo = 0
+
+for (j in 2:pasos){
+  camino[j] <- caminaAleat(camino[j - 1], sd_prop = 20)
+  rechazo <- rechazo + 1 * (camino[j] == camino[j - 1]) 
+}
+
+rp20 <- rechazo / pasos
+caminata20 <- data.frame(pasos = 1:pasos, theta = camino)
+g3 <- ggplot(caminata20[1:2000, ], aes(x = pasos, y = theta)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) +
+  ggtitle("N(0,20)")
+grid.arrange(g1,g2,g3,ncol=3)
+```
+
+* 4.2 Calcula el porcentaje de valores rechazados, compara los resultados y explica a que se deben las diferencias.
+
+_A las mencionadas "varianzas" entre pasos._
+$\sigma$ | rechazo
+--- | --- 
+0.2 | 5.56%
+5 | 57.30%
+20 | 86.91%
+
+```{r}
+rechazo <- data.frame(sd = c(0.2,5,20), rechazo_paso =c(rp0.2,rp5,rp20))
+rechazo
+```
+
++ 4.3 Elimina las primeras 1000 simulaciones y genera histogramas de la distribución posterior para cada caso, ¿que distribución propuesta nos da la representación más cercana a la verdadera distribución posterior? (compara las simulaciones de los tres escenarios de distribución propuesta con la distribución posterior calculada de manera analítica)
+
+_Es mucho más aproximado_ $N(0, 5)$
+
+```{r caminatas comparacion}
+caminata0.2 <- filter(caminata0.2, pasos > 1000)
+caminata5 <- filter(caminata5, pasos > 1000)
+caminata20 <- filter(caminata20, pasos > 1000)
+media_calc <- 20 ^ 2 * 150 / (20 ^ 2 + 100 * 15 ^ 2) + 15 ^ 2 * 13000 / (20^2  + 100 * 15^2)
+sd_calc <- sigma ^ 2 * tau ^ 2 / (sigma ^ 2 + N * tau ^ 2)
+sd_calc<- sqrt(sd_calc)
+g1 <- ggplot(caminata0.2, aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+
+  stat_function(fun = dnorm, args = list(mean = media_calc, sd = sd_calc), color = "red") +
+  ggtitle("Caminata 0.2")
+g2 <- ggplot(caminata5, aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+
+  stat_function(fun = dnorm, args = list(mean = media_calc, sd = sd_calc), color = "red") +
+  ggtitle("Caminata 5")
+g3 <- ggplot(caminata20, aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+
+  stat_function(fun = dnorm, args = list(mean = media_calc, sd = sd_calc), color = "red") +
+  ggtitle("Caminata 20")
+grid.arrange(g1,g2,g3, ncol=3)
+```
+
+```{r}
+caminata0.2f<- data.frame(pasos = 1:nrow(caminata0.2), mu = caminata0.2[1:nrow(caminata0.2), 2], 
+  sigma = sigma)
+caminata0.2f$y_sims <- rnorm(1:nrow(caminata0.2f), caminata0.2f$mu, caminata0.2f$sigma)
+
+teta_inf0.2 <- quantile(caminata0.2f$y_sims, 0.025, na.rm = TRUE)
+teta_sup0.2 <- quantile(caminata0.2f$y_sims, 0.975, na.rm = TRUE)
+
+g1 <- ggplot(caminata0.2f, aes(x = y_sims)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1) + 
+  geom_vline(xintercept = teta_inf0.2, color = "red") +
+  geom_vline(xintercept = teta_sup0.2, color = "red") +
+  ggtitle("Caminata 0.2")
+caminata5f<- data.frame(pasos = 1:nrow(caminata5), mu = caminata5[1:nrow(caminata5), 2], 
+  sigma = sigma)
+
+caminata5f$y_sims <- rnorm(1:nrow(caminata5f), caminata5f$mu, caminata5f$sigma)
+
+teta_inf5 <- quantile(caminata5f$y_sims, 0.025, na.rm = TRUE)
+teta_sup5 <- quantile(caminata5f$y_sims, 0.975, na.rm = TRUE)
+
+g2 <- ggplot(caminata5f, aes(x = y_sims)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1) + 
+  geom_vline(xintercept = teta_inf5, color = "red") +
+  geom_vline(xintercept = teta_sup5, color = "red") +
+  ggtitle("Caminata 5")
+caminata20f<- data.frame(pasos = 1:nrow(caminata20), mu = caminata20[1:nrow(caminata20), 2], 
+  sigma = sigma)
+
+caminata20f$y_sims <- rnorm(1:nrow(caminata20f), caminata20f$mu, caminata20f$sigma)
+
+teta_inf20 <- quantile(caminata20f$y_sims, 0.025, na.rm = TRUE)
+teta_sup20 <- quantile(caminata20f$y_sims, 0.975, na.rm = TRUE)
+
+g3 <- ggplot(caminata20f, aes(x = y_sims)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+ 
+  geom_vline(xintercept = teta_inf20, color = "red") +
+  geom_vline(xintercept = teta_sup20, color = "red") +
+  ggtitle("Caminata 20")
+grid.arrange(g1,g2,g3,ncol=3)
+rm(g1,g2,g3)
+
+data.frame(N=c(0.2,5,20),
+           inf=c(teta_inf0.2, teta_inf5, teta_inf20),
+           sup=c(teta_sup0.2, teta_sup5, teta_sup20))
+```
+
+### 5. Modelos jerárquicos
+
+* 5.1 Si piensas en este problema como un lanzamiento de monedas, ¿a qué corresponden las monedas y los lanzamientos?
+
+_Las monedas corresponden a los conejos y los lanzamientos a los experimentos. Donde $\theta_1$ en el caso de los lanzamientos corresponde a la probabilidad de sacar águila o sol; en el caso de los conejos, es la probabilidad de desarrollar o no un tumor._
+
+* 5.2 La base de datos rabbits contiene las observaciones de los 71 experimentos, cada renglón corresponde a una observación.
+
+```{r}
+rabbits
+summary(rabbits)
+summary(rabbits$tumor %>% as.factor())
+```
+
+* Utiliza JAGS ~o Stan~ para ajustar un modelo jerárquico como el descrito arriba y usando una inicial $Beta(1,1)$ y una $Gamma(1,0.1)$ para $\mu$ y $\kappa$ respectivamente.
+
+```{r}
+modelo_conejos.txt <- 
+'
+model{
+  for(i in 1 : N) {
+    y[i] ~ dbern(p[expr[i]]) 
+  }
+  for(j in 1 : nExp) {
+    p[j] ~ dbeta(a, b)
+  }
+  a <- mu*k
+  b <- (1-mu)*k
+  mu ~ dbeta(1, 1)
+  k ~ dgamma(1, 0.1)
+}
+'
+cat(modelo_conejos.txt, file = 'modelo_conejos.txt')
+jags_fit_conejos <- jags(
+  model.file = "modelo_conejos.txt",    # modelo de JAGS
+# inits = jags.inits,   # valores iniciales
+  data = list(y = rabbits$tumor, expr = rabbits$experiment, 
+              nExp = length(unique(rabbits$experiment)),  
+              N = length(rabbits$tumor)),    # lista con los datos
+  parameters.to.save = c("mu", "k", "p"),  # parámetros por guardar
+  n.chains = 3,   # número de cadenas
+  n.iter = 6000,    # número de pasos
+  n.burnin = 1000   # calentamiento de la cadena
+  )
+#jags_fit_conejos
+```
+
+* Realiza un histograma de la distribución posterior de $\mu$, $\kappa$. Comenta tus resultados.
+
+```{r}
+k_pasos <- jags_fit_conejos$BUGSoutput$sims.matrix[,2]
+k_pasos <- data.frame(k = k_pasos)
+mu_pasos <- jags_fit_conejos$BUGSoutput$sims.matrix[,3]
+mu_pasos <- data.frame(mu = mu_pasos)
+
+g1 <- ggplot(k_pasos, aes(x = k)) +
+  geom_histogram(aes(y = ..density..)) +
+  ggtitle("Posterior de K")
+g2 <- ggplot(mu_pasos, aes(x = mu)) +
+  geom_histogram(aes(y = ..density..)) +
+  ggtitle("Posterior de Mu")
+grid.arrange(g1,g2,ncol=2)
+```
+
+* 5.3 Realiza una gráfica de boxplots con las simulaciones de cada parámetro $\theta_j$, la gráfica será similar a la realizda en la clase de modelos probabilísticos (clase 9). Comenta tus resultados
+
+```{r}
+p <- jags_fit_conejos$BUGSoutput$sims.matrix[,-c(1:3)] %>% data.frame
+med_p_52 <- colMeans(p)
+q <- gather(p,key = p)
+ggplot(q, aes(p, value)) + geom_boxplot()
+```
+
+* 5.4 Ajusta un nuevo modelo utilizando una iniciales Beta(10,10) y Gamma(0.51,0.01)G para $\mu$ y $\kappa$ (lo demás quedará igual). Realiza una gráfica con las medias posteriores de los parámetros $\theta_j$ bajo los dos escenarios de distribuciones iniciales. En el eje horizontal grafica las medias posteriores del modelo ajustado en 6.2 y en el eje vertical las medias posteriores del modelo modelo en 6.4. ¿Cómo se comparan? 
+
+_No importan la "a priori", pues debido a los 1000 puntos de prueba de calentamiento se comporta aproximando a la posterior. Por lo que no hay mucha diferencia._
+
+```{r}
+modelo_conejos54.txt <- 
+'
+model{
+  for(i in 1 : N) {
+    y[i] ~ dbern(p[expr[i]]) 
+  }
+  for(j in 1 : nExp) {
+    p[j] ~ dbeta(a, b)
+  }
+  a <- mu*k
+  b <- (1-mu)*k
+  mu ~ dbeta(10, 10)
+  k ~ dgamma(.51, 0.01)
+}
+'
+cat(modelo_conejos54.txt, file = 'modelo_conejos54.txt')
+jags_fit_conejos54 <- jags(
+  model.file = "modelo_conejos54.txt",    # modelo de JAGS
+# inits = jags.inits,   # valores iniciales
+  data = list(y = rabbits$tumor, expr = rabbits$experiment, 
+              nExp = length(unique(rabbits$experiment)),  
+              N = length(rabbits$tumor)),    # lista con los datos
+  parameters.to.save = c("mu", "k", "p"),  # parámetros por guardar
+  n.chains = 3,   # número de cadenas
+  n.iter = 6000,    # número de pasos
+  n.burnin = 1000   # calentamiento de la cadena
+  )
+# jags_fit_conejos54
+```
+
+```{r}
+p54 <- jags_fit_conejos54$BUGSoutput$sims.matrix[,-c(1:3)] %>% data.frame
+med_p_54 <- colMeans(p54)
+q54 <- gather(p54,key = p54)
+g1 <- ggplot(q54, aes(p54, value)) + 
+  geom_boxplot() + 
+  ggtitle("")
+media_5254 <- data.frame(m_52 = med_p_52, m_54 = med_p_54)
+g2 <- ggplot(media_5254, aes(x = m_52, y = m_54)) + 
+  geom_point() + 
+  ggtitle("")
+grid.arrange(g1,g2,ncol=2)
+```
+

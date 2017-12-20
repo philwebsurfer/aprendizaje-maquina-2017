@@ -1,0 +1,13 @@
+
+model{
+  for(i in 1 : N) {
+    y[i] ~ dbern(p[expr[i]]) 
+  }
+  for(j in 1 : nExp) {
+    p[j] ~ dbeta(a, b)
+  }
+  a <- mu*k
+  b <- (1-mu)*k
+  mu ~ dbeta(1, 1)
+  k ~ dgamma(1, 0.1)
+}

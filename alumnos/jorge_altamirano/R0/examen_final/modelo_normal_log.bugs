@@ -1,0 +1,11 @@
+
+model{
+  for(i in 1:N){
+    x[i] ~ dnorm(0, nu)
+  }
+  # iniciales
+  sigma ~ dunif(.1, 300)
+  nu <- 1 / sigma
+  mu <-0
+  teta <- log(sqrt(sigma))
+}

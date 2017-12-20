@@ -1,0 +1,442 @@
+---
+title: "Examen Final"
+output: html_notebook
+---
+
+```{r}
+library(R2jags)
+library(tidyverse)
+```
+
+### 3.1 Bootstrap paramétrico.
+# Escribe la función de verosimilitud y calcula el estimador de máxima verosimilitud para σ2σ2. Supongamos que observamos los datos x (en la carpeta datos), ¿Cuál es tu estimación de la varianza?
+
+# Función de máxima verosimilitud
+```{r}
+sigma_mv <-function(n,x,mu) sqrt(1 / n * sum((x-mu) ^ 2)) 
+```
+
+```{r}
+load("/Users/urielmiranda/Downloads/Final 2/x.RData")
+n <- length(x)
+mu <- 0 
+```
+# Estimación de varianza
+
+```{r}
+varianza <- sigma_mv(n,x,mu)
+varianza
+```
+
+
+```{r}
+n <- length(x)
+sigma_hat <- varianza 
+
+thetaBoot <- function(){
+    # Simular X_1*,...X_N* con distribución N(mu_hat, sigma_hat^2) 
+    x_boot <- rnorm(n, mean = mu, sd = sigma_hat) 
+    # Calcular sigma* 
+    mu_boot <- mu
+    sigma_boot <- sqrt(1 / n * sum((x_boot - mu_boot) ^ 2)) 
+    sigma_boot
+}
+
+sims_boot <- rerun(3000, thetaBoot()) %>% flatten_dbl()
+ERR <- sqrt(1 / 2999 * sum((sims_boot - sigma_hat) ^ 2))
+ERR
+```
+
+```{r}
+hist(sims_boot)
+```
+
+### 3.2 Análisis bayesiano
+# Continuamos con el problema de hacer inferencia de σ2σ2. Comienza especificando una inicial Gamma Inversa, justifica tu elección de los parámetros de la distribución inicial y grafica la función de densidad.
+
+```{r}
+x_gamma <- rgamma(2000, shape = 3, rate = 3)
+x_igamma <- 1 / x_gamma %>% as.data.frame()
+ggplot(x_igamma, aes(x = x_igamma)) +
+  geom_histogram(aes(y = ..density..))
+```
+# Calcula analíticamente la distribución posterior.
+```{r}
+
+```
+
+# Realiza un histograma de simulaciones de la distribución posterior y calcula el error estándar de la distribución.
+
+```{r}
+xb_gamma <- rgamma(2000,shape = (n/2)+3,rate = sum(x^2)/2+3)
+xb_igamma <- (1 / xb_gamma) %>% as.data.frame()
+
+ggplot(xb_igamma, aes(x = xb_igamma)) +
+  geom_histogram(aes(y = ..density..))
+
+```
+```{r}
+ERR_2 <- sqrt(1 / 2000 * sum((xb_igamma - sigma_hat) ^ 2))
+ERR_2
+```
+
+```{r}
+modelo_normal.txt <-
+  '
+model{
+  for(i in 1:N){
+    x[i] ~ dnorm(0, nu)
+  }
+  # iniciales
+  nu ~ dunif(.1, 300)
+  sigma2 <- 1 / nu
+  mu <-0
+}
+'
+```
+
+```{r}
+cat(modelo_normal.txt, file = 'modelo_normal.bugs')
+```
+
+```{r}
+# Ajustamos el Modelo (Generamos una Cadena de Markov)
+jags_fit <- jags(
+  model.file = "modelo_normal.bugs",    # modelo de JAGS
+ # inits = jags.inits,   # valores iniciales
+  data = list(x = x, N = n),    # lista con los datos
+  parameters.to.save = c("mu", "nu", "sigma2"),  # parámetros por guardar
+  n.chains = 1,   # número de cadenas
+  n.iter = 10000,    # número de pasos
+  n.burnin = 1000,   # calentamiento de la cadena
+  n.thin = 1
+)
+```
+
+```{r}
+jags_fit
+```
+```{r}
+traceplot(jags_fit, varname = c("sigma2"))
+```
+
+
+```{r}
+sigmas <- jags_fit$BUGSoutput$sims.matrix[, 4] %>% data.frame
+
+ggplot(sigmas, aes(x = sigmas)) +
+  geom_histogram(aes(y = ..density..))
+```
+
+```{r}
+ERR_3 <- sqrt(1 / 2000 * sum((sigmas - sigma_hat) ^ 2))
+ERR_3
+```
+### 3.3 Supongamos que ahora buscamos hacer inferencia del parámetro τ=log(σ)τ=log(σ), ¿cuál es el estimador de máxima verosimilitud?
+
+
+```{r}
+T <- log(sigma_hat)
+```
+
+# Utiliza bootstrap paramétrico para generar un intervalo de confianza del 95% para el parámetro ττ y realiza un histograma de las replicaciones bootstrap.
+
+```{r}
+mu <-0 
+sigma_hat <- sqrt(1 / n * sum((x - mu) ^ 2))
+```
+
+```{r}
+thetaBoot_log <- function(){
+    # Simular X_1*,...X_N* con distribución N(mu_hat, sigma_hat^2) 
+    x_boot <- rnorm(n, mean = mu, sd = sigma_hat) 
+    # Calcular sigma* 
+    mu_boot <- mean(x_boot)
+    sigma_boot <- sqrt(1 / n * sum((x_boot - mu_boot) ^ 2)) 
+    log(sigma_boot)
+}
+
+sims_boot_log <- rerun(3000, thetaBoot_log()) %>% flatten_dbl()
+log_inf <- quantile(sims_boot_log, 0.025)
+log_sup <- quantile(sims_boot_log, 0.975)
+log_inf
+log_sup
+```
+
+```{r}
+sims_boot_log <- sims_boot_log %>% data.frame
+ggplot(sims_boot_log, aes(x = sims_boot_log)) +
+  geom_histogram(aes(y = ..density..)) + 
+  geom_vline(xintercept = log_inf, color = "red") +
+  geom_vline(xintercept = log_sup, color = "red")
+```
+# Ahora volvamos a inferencia bayesiana, calcula un intervalo de confianza para ττ y un histograma de la distribución posterior de ττ utilizando la inicial uniforme (para σ2σ2).
+
+```{r}
+modelo_teta.txt <-
+  '
+model{
+  for(i in 1:N){
+    x[i] ~ dnorm(0, nu)
+  }
+  # iniciales
+  nu ~ dunif(.1, 300)
+  sigma2 <- 1 / nu
+  mu <-0
+  teta <- log(sigma2)
+}
+'
+cat(modelo_teta.txt, file = 'modelo_normal_log.bugs')
+
+# Ajustamos el Modelo (Generamos una Cadena de Markov)
+jags_fit_teta <- jags(
+  model.file = "modelo_normal_log.bugs",    # modelo de JAGS
+ # inits = jags.inits,   # valores iniciales
+  data = list(x = x, N = n),    # lista con los datos
+  parameters.to.save = c("mu", "nu", "teta"),  # parámetros por guardar
+  n.chains = 1,   # número de cadenas
+  n.iter = 10000,    # número de pasos
+  n.burnin = 1000,   # calentamiento de la cadena
+  n.thin = 1
+)
+
+```
+```{r}
+jags_fit_teta
+```
+
+```{r}
+teta_mc <- jags_fit_teta$BUGSoutput$sims.matrix[,4]
+teta_inf <- quantile(teta_mc, 0.025)
+teta_sup <- quantile(teta_mc, 0.975)
+teta_inf
+teta_sup
+```
+
+```{r}
+teta_mc <- teta_mc %>% data.frame
+ggplot(teta_mc, aes(x = teta_mc)) +
+  geom_histogram(aes(y = ..density..)) + 
+  geom_vline(xintercept = teta_inf, color = "red") +
+  geom_vline(xintercept = teta_sup, color = "red")
+```
+
+### 4. Metrópolis
+
+# En la tarea de Análisis Bayesiano (respuestas aquí programaste un algoritmo de Metropolis para el caso Normal con varianza conocida. En el ejercicio de la tarea los saltos se proponían de acuerdo a una distribución normal: N(0, 5). Para este ejercicio modifica el código con el fin de calcular el porcentaje de valores rechazados y considera las siguientes distribuciones propuesta: a) N(0,0.2), b) N(0,5) y c) N(0,20).
+
+# 4.1 Genera valores de la distribución posterior usando cada una de las distribuciones propuesta, utiliza la misma distribución inicial y datos observados que utilizaste en la tarea (realiza 6000 pasos). Grafica los primeros 2000 pasos de la cadena. Comenta acerca de las similitudes/diferencias entre las gráficas.
+
+```{r}
+prior <- function(mu = 100, tau = 10){
+  function(theta){
+    dnorm(theta, mu, tau)
+  }
+}
+mu <- 150
+tau <- 15
+mi_prior <- prior(mu, tau)
+```
+
+```{r}
+# S: sum x_i, S2: sum x_i^2, N: número obs., sigma: desviación estándar (conocida)
+S <- 13000
+S2 <- 1700000
+N <- 100
+#sigma2 <- S2 / N - (S / N) ^ 2
+sigma <- 20
+
+likeNorm <- function(S, S2, N, sigma = 20){
+  # quitamos constantes
+  sigma2 <-  sigma ^ 2
+  function(theta){
+    exp(-1 / (2 * sigma2) * (S2 - 2 * theta * S + 
+        N * theta ^ 2))
+  }
+}
+
+mi_like <- likeNorm(S = S, S2 = S2, N = N, sigma = sigma)
+mi_like(130)
+```
+```{r}
+postRelProb <- function(theta){
+  mi_like(theta) * mi_prior(theta)
+}
+
+caminaAleat <- function(theta, sd_prop = .2){ # theta: valor actual
+  salto_prop <- rnorm(n = 1, sd = sd_prop) # salto propuesto
+  theta_prop <- theta + salto_prop # theta propuesta
+  u <- runif(1) 
+  p_move = min(postRelProb(theta_prop) / postRelProb(theta), 1) # prob mover
+  if(p_move  > u){
+    return(theta_prop) # aceptar valor propuesto
+  }
+  else{
+    return(theta) # rechazar
+  }
+}
+
+
+```
+# a) N(0,0.2)
+
+```{r}
+# Generamos la caminata aleatoria
+pasos <- 6000
+camino <- numeric(pasos) # vector que guardará las simulaciones
+camino[1] <- 90 # valor inicial
+rechazo = 0
+
+for (j in 2:pasos){
+  camino[j] <- caminaAleat(camino[j - 1])
+  rechazo <- rechazo + 1 * (camino[j] == camino[j - 1]) 
+}
+
+rp0.2 <- rechazo / pasos
+```
+
+
+```{r}
+caminata0.2 <- data.frame(pasos = 1:pasos, theta = camino)
+ggplot(caminata0.2[1:2000, ], aes(x = pasos, y = theta)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) 
+```
+# b) N(0,5)
+```{r}
+# Generamos la caminata aleatoria
+camino <- numeric(pasos) # vector que guardará las simulaciones
+camino[1] <- 90 # valor inicial
+rechazo = 0
+
+for (j in 2:pasos){
+  camino[j] <- caminaAleat(camino[j - 1], sd_prop = 5)
+  rechazo <- rechazo + 1 * (camino[j] == camino[j - 1]) 
+}
+
+rp5 <- rechazo / pasos
+```
+
+```{r}
+caminata5 <- data.frame(pasos = 1:pasos, theta = camino)
+ggplot(caminata[1:2000, ], aes(x = pasos, y = theta)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) 
+```
+# c) N(0,20)
+```{r}
+# Generamos la caminata aleatoria
+camino <- numeric(pasos) # vector que guardará las simulaciones
+camino[1] <- 90 # valor inicial
+rechazo = 0
+
+for (j in 2:pasos){
+  camino[j] <- caminaAleat(camino[j - 1], sd_prop = 20)
+  rechazo <- rechazo + 1 * (camino[j] == camino[j - 1]) 
+}
+
+rp20 <- rechazo / pasos
+```
+
+```{r}
+caminata20 <- data.frame(pasos = 1:pasos, theta = camino)
+ggplot(caminata[1:2000, ], aes(x = pasos, y = theta)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) 
+```
+
+# 4.2 Calcula el porcentaje de valores rechazados, compara los resultados y explica a que se deben las diferencias.
+
+```{r}
+rechazo <- data.frame(sd = c(0.2,5,20), rechazo_paso =c(rp0.2,rp5,rp20))
+rechazo
+```
+# 4.3 Elimina las primeras 1000 simulaciones y genera histogramas de la distribución posterior para cada caso, ¿que distribución propuesta nos da la representación más cercana a la verdadera distribución posterior? (compara las simulaciones de los tres escenarios de distribución propuesta con la distribución posterior calculada de manera analítica)
+
+```{r}
+caminata0.2 <- caminata0.2[1001:nrow(caminata0.2),]
+caminata5d <- caminata5[1001:nrow(caminata5),]
+caminata20 <- caminata20[1001:nrow(caminata20),]
+```
+
+```{r}
+media_calc <- 20 ^ 2 * 150 / (20 ^ 2 + 100 * 15 ^ 2) + 15 ^ 2 * 13000 / (20^2  + 100 * 15^2)
+sd_calc <- sigma ^ 2 * tau ^ 2 / (sigma ^ 2 + N * tau ^ 2)
+sd_calc<- sqrt(sd_calc)
+```
+
+
+
+```{r}
+ggplot(caminata0.2, aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+stat_function(fun = dnorm, args = list(mean = media_calc, sd = sd_calc), color = "red")
+```
+
+```{r}
+ggplot(caminata5, aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+stat_function(fun = dnorm, args = list(mean = media_calc, sd = sd_calc), color = "red")
+```
+
+```{r}
+ggplot(caminata20, aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+stat_function(fun = dnorm, args = list(mean = media_calc, sd = sd_calc), color = "red")
+```
+```{r}
+caminata0.2f<- data.frame(pasos = 1:pasos, mu = caminata0.2[1:pasos, 2], 
+  sigma2 = 20)
+
+caminata0.2f <- filter(caminata0.2f, pasos > 1000)
+caminata0.2f$y_sims <- rnorm(1:nrow(caminata0.2f), caminata0.2f$mu, caminata0.2f$sigma2)
+
+teta_inf0.2 <- quantile(caminata0.2f$y_sims, 0.025, na.rm = TRUE)
+teta_sup0.2 <- quantile(caminata0.2f$y_sims, 0.975, na.rm = TRUE)
+
+ggplot(caminata0.2f, aes(x = y_sims)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1) + 
+  geom_vline(xintercept = teta_inf0.2, color = "red") +
+  geom_vline(xintercept = teta_sup0.2, color = "red")
+```
+```{r}
+teta_inf0.2
+teta_sup0.2 
+```
+
+
+
+```{r}
+caminata5f<- data.frame(pasos = 1:pasos, mu = caminata5[1:pasos, 2], 
+  sigma2 = 20)
+
+caminata5f <- filter(caminata5f, pasos > 1000)
+caminata5f$y_sims <- rnorm(1:nrow(caminata5f), caminata5f$mu, caminata5f$sigma2)
+
+teta_inf5 <- quantile(caminata5f$y_sims, 0.025, na.rm = TRUE)
+teta_sup5 <- quantile(caminata5f$y_sims, 0.975, na.rm = TRUE)
+
+ggplot(caminata5f, aes(x = y_sims)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1) + 
+  geom_vline(xintercept = teta_inf5, color = "red") +
+  geom_vline(xintercept = teta_sup5, color = "red")
+```
+```{r}
+teta_inf5
+teta_sup5 
+```
+
+
+```{r}
+caminata20f<- data.frame(pasos = 1:pasos, mu = caminata20[1:pasos, 2], 
+  sigma2 = 20)
+
+caminata20f <- filter(caminata20f, pasos > 1000)
+caminata20f$y_sims <- rnorm(1:nrow(caminata20f), caminata20f$mu, caminata20f$sigma2)
+
+teta_inf20 <- quantile(caminata20f$y_sims, 0.025, na.rm = TRUE)
+teta_sup20 <- quantile(caminata20f$y_sims, 0.975, na.rm = TRUE)
+
+ggplot(caminata20f, aes(x = y_sims)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1)+ 
+  geom_vline(xintercept = teta_inf20, color = "red") +
+  geom_vline(xintercept = teta_sup20, color = "red")
+```
+
